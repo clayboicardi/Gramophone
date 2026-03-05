@@ -77,7 +77,7 @@
         <activity
             android:name=".logic.ui.BugHandlerActivity"
             android:exported="false"
-            android:taskAffinity="org.akanework.gramophone.crashLog" />
+            android:taskAffinity="com.clayboi.player.crashLog" />
 
         <service
             android:name=".logic.GramophonePlaybackService"
@@ -108,7 +108,7 @@
                 <!-- extras: https://developer.android.com/guide/components/intents-common#PlaySearch -->
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
                 <!-- extras: item_name(str) -->
-                <action android:name="org.akanework.gramophone.action.SHUFFLE" />
+                <action android:name="com.clayboi.player.action.SHUFFLE" />
                 <!-- extras: query(str) -->
                 <action android:name="com.google.android.gms.actions.SEARCH_ACTION"/>
 

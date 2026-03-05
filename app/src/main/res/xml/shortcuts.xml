@@ -12,10 +12,10 @@
         </intent>
     </capability>
     <capability
-        android:name="org.akanework.gramophone.actions.intent.SHUFFLE"
+        android:name="com.clayboi.player.actions.intent.SHUFFLE"
         app:queryPatterns="@array/shuffle_all_queries">
         <intent
-            android:action="org.akanework.gramophone.action.SHUFFLE"
+            android:action="com.clayboi.player.action.SHUFFLE"
             android:targetPackage="${applicationId}"
             android:targetClass="org.akanework.gramophone.ui.MainActivity">
         <parameter
@@ -31,9 +31,9 @@
         android:shortcutShortLabel="@string/shuffle"
         android:shortcutLongLabel="@string/shuffle_all">
         <intent
-            android:action="org.akanework.gramophone.action.SHUFFLE"
+            android:action="com.clayboi.player.action.SHUFFLE"
             android:targetPackage="${applicationId}"
             android:targetClass="org.akanework.gramophone.ui.MainActivity" />
-        <capability-binding android:key="org.akanework.gramophone.actions.intent.SHUFFLE" />
+        <capability-binding android:key="com.clayboi.player.actions.intent.SHUFFLE" />
     </shortcut>
 </shortcuts>

@@ -558,7 +558,7 @@ class MainActivity : BaseActivity() {
                 }
             }
         }
-        if (intent.action == "org.akanework.gramophone.action.SHUFFLE") {
+        if (intent.action == "com.clayboi.player.action.SHUFFLE") {
             ShortcutManagerCompat.reportShortcutUsed(this@MainActivity, "shuffle_all")
             val query = intent.getStringExtra("item_name") ?: ""
             willAutoPlayLater = true
