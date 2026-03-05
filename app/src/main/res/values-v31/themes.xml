@@ -5,7 +5,7 @@
 
     <style name="Night.Theme.Splash" parent="Impl.Night.Theme.Splash" />
 
-    <style name="Theme.Gramophone" parent="Base.Theme.Gramophone">
+    <style name="Theme.Gramophone" parent="PreV31.Theme.Gramophone">
         <item name="system_app_widget_background_radius">
             @android:dimen/system_app_widget_background_radius
         </item>
