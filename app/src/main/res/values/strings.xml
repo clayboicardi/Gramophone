@@ -10,8 +10,8 @@
     <!-- Translatable -->
     <eat-comment />
 
-    <!-- If your language uses a latin script: use "Gramophone", please do not translate. If your language uses a different script: translate "Gramophone" into your language. -->
-    <string name="app_name">Gramophone</string>
+    <!-- Fork of Gramophone, rebranded as JAMZ!!! -->
+    <string name="app_name">JAMZ!!!</string>
     <string name="home_menu_search">Search</string>
     <string name="home_menu_settings">Settings</string>
     <string name="home_menu_shuffle">Shuffle all</string>
@@ -67,7 +67,7 @@
     <string name="repeat_mode">Repeat mode</string>
     <string name="unknown_playlist">Unknown playlist</string>
     <string name="gramophone_crashed" translatable="false">Crash log</string>
-    <string name="crash_gramophone_version" translatable="false">Gramophone version</string>
+    <string name="crash_gramophone_version" translatable="false">JAMZ!!! version</string>
     <string name="crash_phone_model" translatable="false">Model</string>
     <string name="crash_phone_brand" translatable="false">Brand</string>
     <string name="crash_sdk_level" translatable="false">SDK Level</string>
@@ -304,7 +304,7 @@
     <string name="device_type_line_digital">Digital line</string>
     <string name="device_type_ble_speaker">Bluetooth LE Speaker</string>
     <string name="device_type_ble_broadcast">Bluetooth LE Broadcast</string>
-    <string name="open_in_gramophone">Open in Gramophone</string>
+    <string name="open_in_gramophone">Open in JAMZ!!!</string>
     <string name="settings_trim_lyrics_summary">Spaces before the first letter or after the end of a lyric line may have artistic value. If you disagree, you can turn on this toggle to remove these spaces automatically.</string>
     <string name="cannot_play_file">Cannot play this file</string>
     <string name="settings_lyrics_no_animation">Disable animations</string>
@@ -312,10 +312,10 @@
     <string name="dialog_bitrate">Bitrate</string>
     <string name="bitrate_format">%1$d kbps</string>
     <string name="bitrate_unknown">Unknown bitrate</string>
-    <string name="package_type_explainer">Gramophone APKs can be created by anyone, because Gramophone is open source. To help remembering where an APK came from, Gramophone provides the package type.\n\nThe most common type is Release, which is obtained from F-Droid, Google Play, GitHub or IzzyOnDroid.\nThe CI package type refers to automated builds made for every commit on GitHub. These builds may be unstable.\nFor other package types, the name should give a reasonable hint to where the APK is from.</string>
+    <string name="package_type_explainer">JAMZ!!! APKs can be created by anyone, because JAMZ!!! is open source. To help remembering where an APK came from, JAMZ!!! provides the package type.\n\nThe most common type is Release, which is obtained from F-Droid, Google Play, GitHub or IzzyOnDroid.\nThe CI package type refers to automated builds made for every commit on GitHub. These builds may be unstable.\nFor other package types, the name should give a reasonable hint to where the APK is from.</string>
     <string name="settings_open_source_licenses">Open source licenses</string>
     <string name="oh_no">Oh no!</string>
-    <string name="gramophone_crashed_explainer2">Gramophone crashed :(\n\nPlease send me a bug report so issues like what lead to this crash can be fixed!\n\nEach situation as unique as music, without your help it is likely this bug will <b>NOT</b> be fixed!</string>
+    <string name="gramophone_crashed_explainer2">JAMZ!!! crashed :(\n\nPlease send me a bug report so issues like what lead to this crash can be fixed!\n\nEach situation as unique as music, without your help it is likely this bug will <b>NOT</b> be fixed!</string>
     <string name="send_email">Send email</string>
     <string name="send_email_manually">Please send log to nift4dev@gmail.com - can\'t find mail app</string>
     <string name="failed_to_parse_lyric">Failed to parse lyrics</string>
@@ -412,7 +412,7 @@
     <string name="spk_encoding_unknown">Unknown format %s</string>
     <string name="spk_encoding_unknown_d">Unknown format %d</string>
     <string name="crash_report">Crash report</string>
-    <string name="what_were_you_doing">What were you doing in Gramophone when this crash happened? Please add as many details as possible to increase the chances of me being able to fix the problem.\n\nPlease note that English is preferred for bug reports, but I will try to use machine translation if you send bug reports in another language.</string>
+    <string name="what_were_you_doing">What were you doing in JAMZ!!! when this crash happened? Please add as many details as possible to increase the chances of me being able to fix the problem.\n\nPlease note that English is preferred for bug reports, but I will try to use machine translation if you send bug reports in another language.</string>
     <string name="email_clipboard">Copied e-mail address and text to clipboard</string>
     <string name="settings_export_logs">Export app logs</string>
     <string name="settings_audio_quality_info">Audio quality info</string>
@@ -433,7 +433,7 @@
     <string name="refreshing_wait">Refreshing, please wait…</string>
     <string name="still_refreshing">Refreshing, step %1$d/%2$d: %3$s</string>
     <string name="did_you_know">Did you know…</string>
-    <string name="refresh_did_you_know">Gramophone asks for an updated song list on every app start, and while Gramophone is running, it will detect new media automatically as well. This \"Refresh\" button will not reload the media in Gramophone, instead, it will ask your system to re-scan all files from all attached permanent storage devices (this is why it takes some time). This means, unless your system or other apps are malfunctioning, you will never need to use this feature.\n\nMissing some songs? Make sure to check "Settings > Behaviour" for the minimum length filter and folder blacklist, and confirm these settings are set to an expected value. For more possible reasons, please check our FAQ.</string>
+    <string name="refresh_did_you_know">JAMZ!!! asks for an updated song list on every app start, and while JAMZ!!! is running, it will detect new media automatically as well. This \"Refresh\" button will not reload the media in JAMZ!!!, instead, it will ask your system to re-scan all files from all attached permanent storage devices (this is why it takes some time). This means, unless your system or other apps are malfunctioning, you will never need to use this feature.\n\nMissing some songs? Make sure to check "Settings > Behaviour" for the minimum length filter and folder blacklist, and confirm these settings are set to an expected value. For more possible reasons, please check our FAQ.</string>
     <string name="rename_failed_playlist">Failed to rename playlist: %s</string>
     <string name="playlist_name">Name of playlist</string>
     <string name="create_failed_playlist">Failed to create playlist: %s</string>
