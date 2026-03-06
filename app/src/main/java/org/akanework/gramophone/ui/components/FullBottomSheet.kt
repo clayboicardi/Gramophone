@@ -75,6 +75,7 @@ import com.google.android.material.timepicker.TimeFormat
 import com.google.common.util.concurrent.Futures
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -132,6 +133,7 @@ class FullBottomSheet
 
     private var wrappedContext: Context? = null
     private var currentJob: CoroutineScope? = null
+    private var tagReadJob: Job? = null
     private var currentDisposable: Disposable? = null
     private var isUserTracking = false
     private var runnableRunning = false
@@ -1393,6 +1395,7 @@ class FullBottomSheet
 
     private fun resetCardFlip() {
         if (isCardFlipped) {
+            tagReadJob?.cancel()
             albumInfoCard.visibility = GONE
             albumInfoCard.rotationY = 0f
             bottomSheetFullCoverFrame.visibility = VISIBLE
@@ -1405,17 +1408,17 @@ class FullBottomSheet
         val mediaItem = instance?.currentMediaItem ?: return
         val meta = mediaItem.mediaMetadata
 
-        // Instant values from MediaStore
+        // Instant values from MediaStore (use "—" for missing fields)
         albumInfoCard.findViewById<TextView>(R.id.info_title_value)?.text =
-            meta.title?.toString() ?: ""
+            meta.title?.toString()?.ifBlank { null } ?: "—"
         albumInfoCard.findViewById<TextView>(R.id.info_artist_value)?.text =
-            meta.artist?.toString() ?: ""
+            meta.artist?.toString()?.ifBlank { null } ?: "—"
         albumInfoCard.findViewById<TextView>(R.id.info_album_value)?.text =
-            meta.albumTitle?.toString() ?: ""
+            meta.albumTitle?.toString()?.ifBlank { null } ?: "—"
         albumInfoCard.findViewById<TextView>(R.id.info_genre_value)?.text =
-            meta.genre?.toString() ?: ""
+            meta.genre?.toString()?.ifBlank { null } ?: "—"
         albumInfoCard.findViewById<TextView>(R.id.info_year_value)?.text =
-            (meta.releaseYear ?: meta.recordingYear)?.toString() ?: ""
+            (meta.releaseYear ?: meta.recordingYear)?.toString() ?: "—"
 
         // Clear technical fields while loading
         albumInfoCard.findViewById<TextView>(R.id.info_format_value)?.text = "..."
@@ -1423,26 +1426,37 @@ class FullBottomSheet
         albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text = "..."
         albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text = "..."
 
+        // Cancel any in-flight tag read from a previous track
+        tagReadJob?.cancel()
+
         // Load accurate data from file tags in background
-        val filePath = mediaItem.getFile()?.path ?: return
-        CoroutineScope(Dispatchers.IO).launch {
+        val filePath = mediaItem.getFile()?.path
+        if (filePath == null) {
+            // No file path — clear loading placeholders
+            albumInfoCard.findViewById<TextView>(R.id.info_format_value)?.text = "—"
+            albumInfoCard.findViewById<TextView>(R.id.info_sample_rate_value)?.text = "—"
+            albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text = "—"
+            albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text = "—"
+            return
+        }
+        tagReadJob = CoroutineScope(Dispatchers.IO).launch {
             val tags = FlacTagManager.readAllTags(filePath)
             val audioProps = FlacTagManager.readAudioProperties(filePath)
             withContext(Dispatchers.Main) {
-                // Override with ealvatag values
-                tags["TITLE"]?.let {
+                // Override with ealvatag values (only if non-blank)
+                tags["TITLE"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_title_value)?.text = it
                 }
-                tags["ARTIST"]?.let {
+                tags["ARTIST"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_artist_value)?.text = it
                 }
-                tags["ALBUM"]?.let {
+                tags["ALBUM"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_album_value)?.text = it
                 }
-                tags["GENRE"]?.let {
+                tags["GENRE"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_genre_value)?.text = it
                 }
-                tags["YEAR"]?.let {
+                tags["YEAR"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_year_value)?.text = it
                 }
                 if (audioProps != null) {
@@ -1452,9 +1466,14 @@ class FullBottomSheet
                         context.getString(R.string.tag_sample_rate_format, audioProps.sampleRate)
                     albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text =
                         "${audioProps.bitRate} kbps"
+                } else {
+                    albumInfoCard.findViewById<TextView>(R.id.info_format_value)?.text = "—"
+                    albumInfoCard.findViewById<TextView>(R.id.info_sample_rate_value)?.text = "—"
+                    albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text = "—"
                 }
                 val bpm = tags["BPM"] ?: tags["TMPO"] ?: tags["TEMPO"]
-                albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text = bpm ?: "—"
+                albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text =
+                    bpm?.ifBlank { null } ?: "—"
             }
         }
     }

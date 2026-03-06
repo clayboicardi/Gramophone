@@ -35,6 +35,10 @@
         <item quantity="one">%d Artist</item>
         <item quantity="other">%d Artists</item>
     </plurals>
+    <plurals name="album_artists">
+        <item quantity="one">%d Album Artist</item>
+        <item quantity="other">%d Album Artists</item>
+    </plurals>
     <plurals name="items">
         <item quantity="one">%d Item</item>
         <item quantity="other">%d Items</item>

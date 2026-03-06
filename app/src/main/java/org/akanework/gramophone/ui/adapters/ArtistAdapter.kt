@@ -19,12 +19,14 @@ package org.akanework.gramophone.ui.adapters
 
 import android.content.SharedPreferences
 import android.view.MenuItem
+import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import kotlinx.coroutines.flow.Flow
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import uk.akane.libphonograph.items.Artist
@@ -35,19 +37,22 @@ import uk.akane.libphonograph.items.Artist
 class ArtistAdapter(
     fragment: Fragment,
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext().applicationContext),
-    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
-) : BaseAdapter<Artist>
-    (
-    fragment,
-    liveData = (fragment.requireActivity() as MainActivity).let {
+    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false),
+    liveData: Flow<List<Artist>?> = (fragment.requireActivity() as MainActivity).let {
         if (isAlbumArtist)
             it.reader.albumArtistListFlow else it.reader.artistListFlow
     },
+    isSubFragment: Int? = null
+) : BaseAdapter<Artist>
+    (
+    fragment,
+    liveData = liveData,
     sortHelper = StoreArtistHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.artists,
-    defaultLayoutType = LayoutType.LIST
+    defaultLayoutType = LayoutType.LIST,
+    isSubFragment = isSubFragment
 ) {
 
     init {
@@ -116,6 +121,20 @@ class ArtistAdapter(
     private class ArtistDecorAdapter(
         artistAdapter: ArtistAdapter
     ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists) {
+
+        override fun onCounterBound(counter: TextView, count: Int) {
+            val pluralRes = if (adapter.isAlbumArtist) R.plurals.album_artists else R.plurals.artists
+            counter.text = context.resources.getQuantityString(pluralRes, count, count) + " ▾"
+            counter.setOnClickListener {
+                adapter.isAlbumArtist = !adapter.isAlbumArtist
+                adapter.prefs.edit {
+                    putBoolean("isDisplayingAlbumArtist", adapter.isAlbumArtist)
+                }
+                adapter.liveDataAgent.value =
+                    if (adapter.isAlbumArtist) adapter.mainActivity.reader.albumArtistListFlow
+                    else adapter.mainActivity.reader.artistListFlow
+            }
+        }
 
         override fun onSortButtonPressed(popupMenu: PopupMenu) {
             popupMenu.menu.findItem(R.id.album_artist_checkbox).isVisible = true

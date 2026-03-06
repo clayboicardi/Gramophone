@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.getRecyclerView
 import org.akanework.gramophone.ui.adapters.BaseAdapter
 import org.akanework.gramophone.ui.adapters.BaseDecorAdapter
 import org.akanework.gramophone.ui.adapters.DetailedFolderAdapter
+import org.akanework.gramophone.ui.adapters.SearchSectionHeaderAdapter
 
 /**
  * CustomGridLayoutManager:
@@ -91,6 +92,10 @@ class CustomGridLayoutManager(
                             spanCount
                         }
 
+                        is SearchSectionHeaderAdapter -> {
+                            spanCount
+                        }
+
                         is BaseAdapter<*> -> {
                             adapter.getSpanSize()
                         }
@@ -109,6 +114,10 @@ class CustomGridLayoutManager(
                         }
 
                         is DetailedFolderAdapter.FolderCardAdapter -> {
+                            0
+                        }
+
+                        is SearchSectionHeaderAdapter -> {
                             0
                         }
 
