@@ -60,4 +60,19 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory
+        android:layout="@layout/preference_category_md"
+        android:title="@string/settings_category_visualizer">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="audio_visualizer"
+            android:layout="@layout/preference_switch"
+            android:summary="@string/settings_visualizer_summary"
+            android:title="@string/settings_visualizer"
+            android:widgetLayout="@layout/preference_switch_widget"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

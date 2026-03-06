@@ -24,6 +24,21 @@
         app:layout_constraintTop_toTopOf="@id/album_cover_frame"
         app:layout_constraintBottom_toBottomOf="@id/album_cover_frame" />
 
+    <!-- Ambient visualizer behind album art (on top of blur, behind cover) -->
+    <org.akanework.gramophone.ui.components.VisualizerView
+        android:id="@+id/visualizer_ambient"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:alpha="0.2"
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:visibility="gone"
+        android:importantForAccessibility="no"
+        app:layout_constraintStart_toStartOf="@id/album_cover_frame"
+        app:layout_constraintEnd_toEndOf="@id/album_cover_frame"
+        app:layout_constraintTop_toTopOf="@id/album_cover_frame"
+        app:layout_constraintBottom_toBottomOf="@id/album_cover_frame" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/slide_down"
         android:layout_width="52dp"
@@ -221,7 +236,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="28dp"
-            app:layout_constraintBottom_toTopOf="@id/sheet_mid_button"
+            app:layout_constraintBottom_toTopOf="@id/visualizer_strip"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/slider"
@@ -274,6 +289,18 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <!-- Visualizer strip: spectrum bars below seekbar -->
+        <org.akanework.gramophone.ui.components.VisualizerView
+            android:id="@+id/visualizer_strip"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginHorizontal="28dp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/duration_frame"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/sheet_mid_button"
             android:layout_width="90dp"
@@ -295,7 +322,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/duration_frame"
+            app:layout_constraintTop_toBottomOf="@id/visualizer_strip"
             app:tooltipText="@string/play" />
 
         <com.google.android.material.button.MaterialButton

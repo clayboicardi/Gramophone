@@ -113,6 +113,7 @@ import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.manipulator.ItemManipulator
+import org.akanework.gramophone.logic.utils.VisualizerProcessor
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -235,6 +236,9 @@ class FullBottomSheet
     private val lyricsBlurBg: ImageView
     private var lyricsBlurAnimator: ObjectAnimator? = null
     private var blurDisposable: Disposable? = null
+    private val visualizerStrip: VisualizerView
+    private val visualizerAmbient: VisualizerView
+    private var visualizerEnabled = false
     private var isCardFlipped = false
     private var isSwiping = false
     private var swipeStartX = 0f
@@ -248,6 +252,12 @@ class FullBottomSheet
         peekCover = findViewById(R.id.peek_cover)
         albumBlurBg = findViewById(R.id.album_blur_bg)
         lyricsBlurBg = findViewById(R.id.lyrics_blur_bg)
+        visualizerStrip = findViewById<VisualizerView>(R.id.visualizer_strip).apply {
+            mode = VisualizerView.Mode.STRIP
+        }
+        visualizerAmbient = findViewById<VisualizerView>(R.id.visualizer_ambient).apply {
+            mode = VisualizerView.Mode.AMBIENT
+        }
         bottomSheetFullCover = findViewById(R.id.full_sheet_cover)
         bottomSheetFullTitle = findViewById(R.id.full_song_name)
         bottomSheetFullSubtitle = findViewById(R.id.full_song_artist)
@@ -635,6 +645,7 @@ class FullBottomSheet
             )
             onMediaMetadataChanged(instance?.mediaMetadata ?: MediaMetadata.EMPTY)
             firstTime = false
+            if (visualizerEnabled) enableVisualizer()
         }
         bottomSheetFullCover.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             if (oldRight - oldLeft != right - left || oldBottom - oldTop != bottom - top) {
@@ -712,6 +723,30 @@ class FullBottomSheet
         if (key == null || key == "cookie_cover") {
             bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", false))
         }
+        if (key == null || key == "audio_visualizer") {
+            visualizerEnabled = prefs.getBoolean("audio_visualizer", false)
+            if (visualizerEnabled) enableVisualizer() else disableVisualizer()
+        }
+    }
+
+    private fun enableVisualizer() {
+        VisualizerProcessor.instance?.active = true
+        visualizerStrip.isActive = true
+        visualizerAmbient.isActive = true
+        visualizerStrip.setBarColor(colorPrimaryFinalColor)
+        visualizerAmbient.setBarColor(colorPrimaryFinalColor)
+        visualizerStrip.visibility = VISIBLE
+        visualizerAmbient.visibility = VISIBLE
+    }
+
+    private fun disableVisualizer() {
+        VisualizerProcessor.instance?.active = false
+        visualizerStrip.isActive = false
+        visualizerAmbient.isActive = false
+        visualizerStrip.clear()
+        visualizerAmbient.clear()
+        visualizerStrip.visibility = GONE
+        visualizerAmbient.visibility = GONE
     }
 
     private fun showPlaybackSpeedDialog() {
@@ -1160,6 +1195,8 @@ class FullBottomSheet
                     ColorStateList.valueOf(progressColor)
                 bottomSheetFullSeekBar.thumbTintList =
                     ColorStateList.valueOf(progressColor)
+                visualizerStrip.setBarColor(progressColor)
+                visualizerAmbient.setBarColor(progressColor)
             }
             duration = BACKGROUND_COLOR_TRANSITION_SEC
         }
@@ -1649,6 +1686,15 @@ class FullBottomSheet
     }
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
+        if (visualizerEnabled) {
+            VisualizerProcessor.instance?.active = isPlaying
+            visualizerStrip.isActive = isPlaying
+            visualizerAmbient.isActive = isPlaying
+            if (!isPlaying) {
+                visualizerStrip.clear()
+                visualizerAmbient.clear()
+            }
+        }
         onPlaybackStateChanged(instance?.playbackState ?: Player.STATE_IDLE)
     }
 
@@ -1712,6 +1758,11 @@ class FullBottomSheet
 
             else -> super.onKeyUp(keyCode, event)
         }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        disableVisualizer()
     }
 
     private val positionRunnable = object : Runnable {

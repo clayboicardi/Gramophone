@@ -28,6 +28,7 @@ class AudioSettingsActivity : BaseSettingsActivity(
     { AudioSettingsFragment() })
 
 class AudioSettingsFragment : BasePreferenceFragment() {
+
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.settings_audio, rootKey)
     }
@@ -36,6 +37,7 @@ class AudioSettingsFragment : BasePreferenceFragment() {
         when (preference.key) {
             "replaygain" -> {
                 startActivity(ReplayGainSettingsActivity::class.java)
+                return true
             }
         }
         return super.onPreferenceTreeClick(preference)
