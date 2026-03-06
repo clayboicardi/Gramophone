@@ -1,4 +1,0 @@
-- redeseño do reprodutor
-- manter pantalla acendida ao ver a letra
-- compatibilidade con tarxetas SD na pestana Sistema de ficheiros
-- arranxo de problemas

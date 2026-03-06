@@ -1,2 +1,0 @@
-- Permitir reordenar y ocultar pestañas
-- Se han corregido varios errores

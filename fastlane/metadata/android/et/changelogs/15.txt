@@ -1,2 +1,0 @@
-- Lisasime vahekaartide järjekorra muutmise ja peitmise
-- Parandasime mitmed kokkujooksmised

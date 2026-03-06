@@ -1,3 +1,0 @@
-- Fix some bugs related to tab reordering
-- Fixed equalizer support
-- Fix some accessibility issues (please let me know if there are more!)

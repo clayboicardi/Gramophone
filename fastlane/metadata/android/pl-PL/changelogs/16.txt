@@ -1,3 +1,0 @@
-- Naprawiono kilka błędów związanych ze zmianą kolejności kart
-- Naprawiono obsługę korektora
-- Naprawiono niektóre problemy z dostępnością (proszę, daj mi znać, jeśli jest ich więcej!)

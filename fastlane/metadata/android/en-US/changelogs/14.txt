@@ -1,1 +1,0 @@
-Hotfix for crash when phone is set to Filipino language

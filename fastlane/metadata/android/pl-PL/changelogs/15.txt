@@ -1,2 +1,0 @@
-- Możliwość zmiany kolejności i ukrywania kart
-- Naprawiono wiele awarii

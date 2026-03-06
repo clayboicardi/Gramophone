@@ -1,2 +1,0 @@
-- Allow reordering and hiding tabs
-- Multiple crashes fixed
