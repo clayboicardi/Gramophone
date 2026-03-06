@@ -25,6 +25,7 @@ import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.getBooleanStrict
+import kotlinx.coroutines.flow.Flow
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
 import uk.akane.libphonograph.items.Artist
@@ -35,19 +36,22 @@ import uk.akane.libphonograph.items.Artist
 class ArtistAdapter(
     fragment: Fragment,
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext().applicationContext),
-    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false)
-) : BaseAdapter<Artist>
-    (
-    fragment,
-    liveData = (fragment.requireActivity() as MainActivity).let {
+    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false),
+    liveData: Flow<List<Artist>?> = (fragment.requireActivity() as MainActivity).let {
         if (isAlbumArtist)
             it.reader.albumArtistListFlow else it.reader.artistListFlow
     },
+    isSubFragment: Int? = null
+) : BaseAdapter<Artist>
+    (
+    fragment,
+    liveData = liveData,
     sortHelper = StoreArtistHelper,
     naturalOrderHelper = null,
     initialSortType = Sorter.Type.ByTitleAscending,
     pluralStr = R.plurals.artists,
-    defaultLayoutType = LayoutType.LIST
+    defaultLayoutType = LayoutType.LIST,
+    isSubFragment = isSubFragment
 ) {
 
     init {

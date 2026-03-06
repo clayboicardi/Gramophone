@@ -70,6 +70,10 @@ fun getAdapterType(adapter: AdapterFragment.BaseInterface<*>) =
             13
         }
 
+        adapter is AlbumAdapter && adapter.isSubFragment == R.id.search -> {
+            17
+        }
+
         adapter is DetailedFolderAdapter && !adapter.isDetailed -> {
             14
         }

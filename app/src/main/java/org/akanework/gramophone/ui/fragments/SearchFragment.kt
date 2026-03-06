@@ -25,26 +25,31 @@ import android.widget.Button
 import android.widget.EditText
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.appbar.AppBarLayout
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.closeKeyboard
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.showKeyboard
 import org.akanework.gramophone.logic.ui.MyRecyclerView
+import org.akanework.gramophone.ui.adapters.AlbumAdapter
+import org.akanework.gramophone.ui.adapters.ArtistAdapter
+import org.akanework.gramophone.ui.adapters.SearchSectionHeaderAdapter
 import org.akanework.gramophone.ui.adapters.SongAdapter
 import org.akanework.gramophone.ui.adapters.Sorter
 
 /**
  * SearchFragment:
- *   A fragment that contains a search bar which browses
- * the library finding items matching user input.
+ *   Sectioned search across Artists, Albums, and Songs.
+ *   Each section auto-hides when there are no matches.
  *
- * @author AkaneTan
+ * @author AkaneTan, modified by Clayboi
  */
 class SearchFragment : BaseFragment(true) {
     // TODO this class leaks InsetSourceControl
@@ -55,41 +60,117 @@ class SearchFragment : BaseFragment(true) {
         container: ViewGroup?,
         savedInstanceState: Bundle?,
     ): View? {
-        // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_search, container, false)
         val appBarLayout = rootView.findViewById<AppBarLayout>(R.id.appbarlayout)
         appBarLayout.enableEdgeToEdgePaddingListener()
         editText = rootView.findViewById(R.id.edit_text)
         val recyclerView = rootView.findViewById<MyRecyclerView>(R.id.recyclerview)
         val searchTextFlow = MutableStateFlow(arguments?.getString("query", "") ?: "")
-        val songAdapter =
-            SongAdapter(
-                this, mainActivity.reader.songListFlow.combine(searchTextFlow.map {
-                    it.trim()
-                }) { list, text ->
-                    list.filter {
-                        // TODO sort results by match quality? (using raw=natural order)
-                        val isMatchingTitle =
-                            it.mediaMetadata.title?.contains(text, true) == true
-                        val isMatchingAlbum =
-                            it.mediaMetadata.albumTitle?.contains(text, true) == true
-                        val isMatchingArtist =
-                            it.mediaMetadata.artist?.contains(text, true) == true
-                        isMatchingTitle || isMatchingAlbum || isMatchingArtist
-                    }
-                },
-                isSubFragment = R.id.search, allowDiffUtils = true,
-                rawOrderExposed = Sorter.Type.ByTitleAscending
-            )
-        val returnButton = rootView.findViewById<Button>(R.id.return_button)
+        val trimmedQuery = searchTextFlow.map { it.trim() }
+
+        // ── Filtered flows ──────────────────────────────────────────────
+
+        val filteredArtistFlow = mainActivity.reader.artistListFlow
+            .combine(trimmedQuery) { artists, query ->
+                if (query.isBlank()) emptyList()
+                else artists.filter { artist ->
+                    artist.title?.contains(query, true) == true
+                }
+            }
+
+        val filteredAlbumFlow = mainActivity.reader.albumListFlow
+            .combine(trimmedQuery) { albums, query ->
+                if (query.isBlank()) emptyList()
+                else albums.filter { album ->
+                    album.title?.contains(query, true) == true ||
+                        album.albumArtist?.contains(query, true) == true
+                }
+            }
+
+        val filteredSongFlow = mainActivity.reader.songListFlow
+            .combine(trimmedQuery) { list, query ->
+                if (query.isBlank()) emptyList()
+                else list.filter {
+                    val isMatchingTitle =
+                        it.mediaMetadata.title?.contains(query, true) == true
+                    val isMatchingAlbum =
+                        it.mediaMetadata.albumTitle?.contains(query, true) == true
+                    val isMatchingArtist =
+                        it.mediaMetadata.artist?.contains(query, true) == true
+                    isMatchingTitle || isMatchingAlbum || isMatchingArtist
+                }
+            }
+
+        // ── Section headers ─────────────────────────────────────────────
+
+        val artistHeader = SearchSectionHeaderAdapter(
+            getString(R.string.category_artists)
+        )
+        val albumHeader = SearchSectionHeaderAdapter(
+            getString(R.string.category_albums)
+        )
+        val songHeader = SearchSectionHeaderAdapter(
+            getString(R.string.category_songs)
+        )
+
+        // ── Adapters ────────────────────────────────────────────────────
+
+        val artistAdapter = ArtistAdapter(
+            fragment = this,
+            liveData = filteredArtistFlow,
+            isSubFragment = R.id.search
+        )
+
+        val albumAdapter = AlbumAdapter(
+            fragment = this,
+            liveData = filteredAlbumFlow,
+            isSubFragment = R.id.search
+        )
+
+        val songAdapter = SongAdapter(
+            this,
+            filteredSongFlow,
+            isSubFragment = R.id.search,
+            allowDiffUtils = true,
+            rawOrderExposed = Sorter.Type.ByTitleAscending
+        )
+
+        // ── Observe result counts → update section headers ──────────
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            filteredArtistFlow.collect { artists ->
+                artistHeader.resultCount = artists.size
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            filteredAlbumFlow.collect { albums ->
+                albumHeader.resultCount = albums.size
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            filteredSongFlow.collect { songs ->
+                songHeader.resultCount = songs.size
+            }
+        }
+
+        // ── ConcatAdapter: chain sections ───────────────────────────
 
         recyclerView.enableEdgeToEdgePaddingListener(ime = true)
         recyclerView.setAppBar(appBarLayout)
         recyclerView.layoutManager = LinearLayoutManager(activity)
-        recyclerView.adapter = songAdapter.concatAdapter
+        recyclerView.adapter = ConcatAdapter(
+            ConcatAdapter.Config.Builder()
+                .setIsolateViewTypes(true)
+                .build(),
+            artistHeader,
+            artistAdapter,
+            albumHeader,
+            albumAdapter,
+            songHeader,
+            songAdapter
+        )
 
-        // Build FastScroller.
-        recyclerView.fastScroll(songAdapter, songAdapter.itemHeightHelper)
+        val returnButton = rootView.findViewById<Button>(R.id.return_button)
 
         editText.addTextChangedListener { rawText ->
             searchTextFlow.value = rawText?.toString() ?: ""
