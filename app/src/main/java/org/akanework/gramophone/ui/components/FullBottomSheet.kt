@@ -3,6 +3,7 @@ package org.akanework.gramophone.ui.components
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ContentUris
@@ -230,6 +231,10 @@ class FullBottomSheet
     private var lastDisposable: Disposable? = null
     private val albumInfoCard: MaterialCardView
     private val peekCover: ImageView
+    private val albumBlurBg: ImageView
+    private val lyricsBlurBg: ImageView
+    private var lyricsBlurAnimator: ObjectAnimator? = null
+    private var blurDisposable: Disposable? = null
     private var isCardFlipped = false
     private var isSwiping = false
     private var swipeStartX = 0f
@@ -241,6 +246,8 @@ class FullBottomSheet
         bottomSheetFullCoverFrame = findViewById(R.id.album_cover_frame)
         albumInfoCard = findViewById(R.id.album_info_card)
         peekCover = findViewById(R.id.peek_cover)
+        albumBlurBg = findViewById(R.id.album_blur_bg)
+        lyricsBlurBg = findViewById(R.id.lyrics_blur_bg)
         bottomSheetFullCover = findViewById(R.id.full_sheet_cover)
         bottomSheetFullTitle = findViewById(R.id.full_song_name)
         bottomSheetFullSubtitle = findViewById(R.id.full_song_artist)
@@ -301,6 +308,19 @@ class FullBottomSheet
                             or WindowInsetsCompat.Type.displayCutout(), Insets.NONE
                 )
                 .build()
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(lyricsBlurBg) { v, insets ->
+            val myInsets = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars()
+                        or WindowInsetsCompat.Type.displayCutout()
+            )
+            v.updateMargin {
+                left = -myInsets.left
+                top = -myInsets.top
+                right = -myInsets.right
+                bottom = -myInsets.bottom
+            }
+            return@setOnApplyWindowInsetsListener insets
         }
         refreshSettings(null)
         prefs.registerOnSharedPreferenceChangeListener(this)
@@ -593,6 +613,7 @@ class FullBottomSheet
 
         bottomSheetLyricButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            showLyricsBlur()
             bottomSheetFullLyricView.fadInAnimation(LYRIC_FADE_TRANSITION_SEC)
         }
 
@@ -849,6 +870,7 @@ class FullBottomSheet
         )
         setPadding(myInsets.left, myInsets.top, myInsets.right, myInsets.bottom)
         ViewCompat.dispatchApplyWindowInsets(bottomSheetFullLyricView, insets.clone())
+        ViewCompat.dispatchApplyWindowInsets(lyricsBlurBg, insets.clone())
         return WindowInsetsCompat.Builder(insets)
             .setInsets(
                 WindowInsetsCompat.Type.systemBars()
@@ -1112,11 +1134,16 @@ class FullBottomSheet
 
         surfaceTransition.apply {
             addUpdateListener { animation ->
-                setBackgroundColor(
-                    animation.animatedValue as Int
-                )
+                val color = animation.animatedValue as Int
+                setBackgroundColor(color)
+                // Lyrics get semi-transparent background so blur art shows through
                 bottomSheetFullLyricView.setBackgroundColor(
-                    animation.animatedValue as Int
+                    androidx.core.graphics.ColorUtils.setAlphaComponent(color, 204)
+                )
+                // Tint the lyrics blur background with the content-based color
+                lyricsBlurBg.setColorFilter(
+                    androidx.core.graphics.ColorUtils.setAlphaComponent(color, 120),
+                    android.graphics.PorterDuff.Mode.SRC_ATOP
                 )
             }
             duration = BACKGROUND_COLOR_TRANSITION_SEC
@@ -1297,6 +1324,49 @@ class FullBottomSheet
         }
     }
 
+    private fun loadBlurForBackgrounds() {
+        blurDisposable?.dispose()
+        blurDisposable = null
+        val mediaItem = instance?.currentMediaItem
+        val artworkUri = mediaItem?.mediaMetadata?.artworkUri
+        blurDisposable = context.imageLoader.enqueue(
+            ImageRequest.Builder(context).apply {
+                data(artworkUri)
+                size(16, 16) // tiny size — bilinear upscale creates natural blur
+                scale(Scale.FILL)
+                allowHardware(false) // need software bitmap for color filtering
+                target(onSuccess = {
+                    val drawable = it.asDrawable(context.resources)
+                    albumBlurBg.setImageDrawable(drawable)
+                    lyricsBlurBg.setImageDrawable(drawable.constantState?.newDrawable()?.mutate())
+                    albumBlurBg.animate().alpha(0.5f).setDuration(300).start()
+                }, onError = {
+                    albumBlurBg.setImageDrawable(null)
+                    lyricsBlurBg.setImageDrawable(null)
+                    albumBlurBg.alpha = 0f
+                })
+            }.build()
+        )
+    }
+
+    private fun showLyricsBlur() {
+        lyricsBlurBg.fadInAnimation(LYRIC_FADE_TRANSITION_SEC)
+        // Start cloud-like alpha pulse animation
+        lyricsBlurAnimator?.cancel()
+        lyricsBlurAnimator = ObjectAnimator.ofFloat(lyricsBlurBg, "alpha", 0.5f, 0.8f).apply {
+            duration = 4000
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    fun hideLyricsBlur() {
+        lyricsBlurAnimator?.cancel()
+        lyricsBlurAnimator = null
+        lyricsBlurBg.fadOutAnimation(LYRIC_FADE_TRANSITION_SEC)
+    }
+
     private fun loadCoverForImageView() {
         if (lastDisposable != null) {
             lastDisposable?.dispose()
@@ -1305,6 +1375,7 @@ class FullBottomSheet
         }
         val mediaItem = instance?.currentMediaItem
         Log.d(TAG, "load cover for " + mediaItem?.mediaMetadata?.title + " considered")
+        loadBlurForBackgrounds()
         if (bottomSheetFullCover.width != 0 && bottomSheetFullCover.height != 0) {
             Log.d(
                 TAG,

@@ -9,6 +9,21 @@
     android:clipToPadding="false"
     tools:parentTag="androidx.constraintlayout.widget.ConstraintLayout">
 
+    <!-- Blurred album art glow behind the album cover card -->
+    <ImageView
+        android:id="@+id/album_blur_bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        android:scaleX="1.15"
+        android:scaleY="1.15"
+        android:alpha="0.5"
+        android:importantForAccessibility="no"
+        app:layout_constraintStart_toStartOf="@id/album_cover_frame"
+        app:layout_constraintEnd_toEndOf="@id/album_cover_frame"
+        app:layout_constraintTop_toTopOf="@id/album_cover_frame"
+        app:layout_constraintBottom_toBottomOf="@id/album_cover_frame" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/slide_down"
         android:layout_width="52dp"
@@ -475,11 +490,20 @@
             app:tooltipText="@string/current_playlist" />
     </LinearLayout>
 
+    <!-- Blurred album art behind lyrics (cloud-like animated background) -->
+    <ImageView
+        android:id="@+id/lyrics_blur_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
+
     <org.akanework.gramophone.ui.components.LyricsView
         android:id="@+id/lyric_frame"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="?attr/colorSurface"
+        android:background="#CC000000"
         android:clipChildren="false"
         android:clipToPadding="false"
         android:keepScreenOn="true"

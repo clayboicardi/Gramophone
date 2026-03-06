@@ -216,6 +216,7 @@ class PlayerBottomSheet private constructor(
                             || Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
                         ) {
                             fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                            fullPlayer.hideLyricsBlur()
                             return
                         }
                         @SuppressLint("RestrictedApi")
@@ -224,6 +225,7 @@ class PlayerBottomSheet private constructor(
                             object : AnimatorListenerAdapter() {
                                 override fun onAnimationStart(animation: Animator) {
                                     fullPlayer.bottomSheetFullLyricView.fadOutAnimation(FullBottomSheet.LYRIC_FADE_TRANSITION_SEC)
+                                    fullPlayer.hideLyricsBlur()
                                 }
                             })
                     } else {

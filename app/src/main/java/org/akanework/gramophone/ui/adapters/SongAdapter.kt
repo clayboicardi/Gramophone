@@ -17,19 +17,26 @@
 
 package org.akanework.gramophone.ui.adapters
 
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ShareCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.common.util.Log
+
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +44,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.ui.MyRecyclerView
 import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.requireMediaStoreId
 import org.akanework.gramophone.logic.utils.Flags
@@ -155,6 +163,21 @@ class SongAdapter(
             currentIsPlaying =
                 it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playbackState != Player.STATE_IDLE
         }
+    }
+
+    private var itemTouchHelper: ItemTouchHelper? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: MyRecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        itemTouchHelper = ItemTouchHelper(SwipeToQueueCallback()).also {
+            it.attachToRecyclerView(recyclerView)
+        }
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: MyRecyclerView) {
+        itemTouchHelper?.attachToRecyclerView(null)
+        itemTouchHelper = null
+        super.onDetachedFromRecyclerView(recyclerView)
     }
 
     override fun onListUpdated() {
@@ -322,6 +345,79 @@ class SongAdapter(
             NowPlayingDrawable(context)
                 .also { it.level = if (currentIsPlaying == true) 1 else 0 })
         holder.nowPlaying.visibility = View.VISIBLE
+    }
+
+    private inner class SwipeToQueueCallback : ItemTouchHelper.SimpleCallback(
+        0, ItemTouchHelper.RIGHT
+    ) {
+        private val bgPaint = Paint().apply { color = Color.parseColor("#69FF5C") }
+        private val icon: Drawable? =
+            ContextCompat.getDrawable(context, R.drawable.ic_queue_add)?.mutate()?.apply {
+                setTint(Color.BLACK)
+            }
+
+        override fun onMove(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ) = false
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+            val position = viewHolder.bindingAdapterPosition
+            if (position != RecyclerView.NO_POSITION) {
+                val item = getSongList()[position]
+                mainActivity.getPlayer()?.addMediaItem(item)
+                viewHolder.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.add_to_queue),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            // Snap item back to original position
+            notifyItemChanged(position)
+        }
+
+        override fun onChildDraw(
+            c: Canvas,
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            dX: Float,
+            dY: Float,
+            actionState: Int,
+            isCurrentlyActive: Boolean
+        ) {
+            if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && dX > 0) {
+                val itemView = viewHolder.itemView
+                val alpha = (dX / itemView.width).coerceIn(0f, 1f)
+                bgPaint.alpha = (alpha * 180).toInt()
+                c.drawRect(
+                    itemView.left.toFloat(), itemView.top.toFloat(),
+                    itemView.left + dX, itemView.bottom.toFloat(),
+                    bgPaint
+                )
+                icon?.let {
+                    val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                    val iconLeft = itemView.left + iconMargin
+                    val iconTop = itemView.top + iconMargin
+                    it.alpha = (alpha * 255).toInt()
+                    it.setBounds(
+                        iconLeft, iconTop,
+                        iconLeft + it.intrinsicWidth, iconTop + it.intrinsicHeight
+                    )
+                    it.draw(c)
+                }
+            }
+            super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+        }
+
+        override fun getSwipeDirs(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder
+        ): Int {
+            if (viewHolder.bindingAdapter !== this@SongAdapter) return 0
+            return super.getSwipeDirs(recyclerView, viewHolder)
+        }
     }
 
     object MediaItemHelper : Sorter.Helper<MediaItem>(

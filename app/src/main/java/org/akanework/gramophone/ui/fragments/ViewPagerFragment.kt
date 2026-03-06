@@ -219,11 +219,12 @@ class ViewPagerFragment : BaseFragment(true) {
 
         if (adapter.itemCount < 2) {
             tabLayout.visibility = View.GONE
-            viewPager2.isUserInputEnabled = false
         } else {
             tabLayout.visibility = View.VISIBLE
-            viewPager2.isUserInputEnabled = true
         }
+        // Disable ViewPager2 swipe to prevent conflict with swipe-to-queue on song items.
+        // Tab navigation via tapping still works.
+        viewPager2.isUserInputEnabled = false
 
         return rootView
     }
