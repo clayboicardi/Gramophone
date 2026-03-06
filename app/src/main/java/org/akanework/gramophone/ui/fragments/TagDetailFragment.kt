@@ -15,7 +15,7 @@ import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.snackbar.Snackbar
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -104,7 +104,7 @@ class TagDetailFragment : BaseFragment(false) {
         // -- Load tags from actual file on background thread --
         val path = filePath
         if (path != null) {
-            CoroutineScope(Dispatchers.IO).launch {
+            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                 val tags = FlacTagManager.readAllTags(path)
                 val audioProps = FlacTagManager.readAudioProperties(path)
 
@@ -130,10 +130,12 @@ class TagDetailFragment : BaseFragment(false) {
                             "${audioProps.bitRate} kbps")
                     }
 
-                    // BPM from Vorbis comments
+                    // BPM from Vorbis comments — only show if present
                     val bpm = tags["BPM"] ?: tags["TMPO"] ?: tags["TEMPO"]
-                    addDynamicRow(inflater, techContainer,
-                        getString(R.string.tag_label_bpm), bpm ?: "—")
+                    if (!bpm.isNullOrBlank()) {
+                        addDynamicRow(inflater, techContainer,
+                            getString(R.string.tag_label_bpm), bpm)
+                    }
                 }
             }
         }

@@ -115,21 +115,23 @@ class SearchFragment : BaseFragment(true) {
 
         // ── Adapters ────────────────────────────────────────────────────
 
+        val maxPerSection = 5
+
         val artistAdapter = ArtistAdapter(
             fragment = this,
-            liveData = filteredArtistFlow,
+            liveData = filteredArtistFlow.map { it.take(maxPerSection) },
             isSubFragment = R.id.search
         )
 
         val albumAdapter = AlbumAdapter(
             fragment = this,
-            liveData = filteredAlbumFlow,
+            liveData = filteredAlbumFlow.map { it.take(maxPerSection) },
             isSubFragment = R.id.search
         )
 
         val songAdapter = SongAdapter(
             this,
-            filteredSongFlow,
+            filteredSongFlow.map { it.take(maxPerSection) },
             isSubFragment = R.id.search,
             allowDiffUtils = true,
             rawOrderExposed = Sorter.Type.ByTitleAscending
