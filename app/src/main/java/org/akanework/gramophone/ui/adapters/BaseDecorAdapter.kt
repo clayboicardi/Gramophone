@@ -195,13 +195,13 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
             } else if (adapter is AlbumAdapter) {
                 val list = adapter.getAlbumList()
                 val controller = adapter.getActivity().getPlayer()
-                controller?.repeatMode = REPEAT_MODE_OFF
-                controller?.shuffleModeEnabled = false
-                list.takeIf { it.isNotEmpty() }?.also { albums ->
-                    controller?.setMediaItems(albums.shuffled().flatMap { it.songList })
+                val allSongs = list.flatMap { it.songList }
+                controller?.shuffleModeEnabled = true
+                controller?.setMediaItems(allSongs)
+                if (allSongs.isNotEmpty()) {
                     controller?.prepare()
                     controller?.play()
-                } ?: controller?.setMediaItems(listOf())
+                }
             }
         }
         holder.jumpUp.visibility = if (jumpUpPos != null) View.VISIBLE else View.GONE
