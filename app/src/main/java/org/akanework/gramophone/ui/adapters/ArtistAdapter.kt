@@ -19,6 +19,7 @@ package org.akanework.gramophone.ui.adapters
 
 import android.content.SharedPreferences
 import android.view.MenuItem
+import android.widget.TextView
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.edit
 import androidx.fragment.app.Fragment
@@ -120,6 +121,20 @@ class ArtistAdapter(
     private class ArtistDecorAdapter(
         artistAdapter: ArtistAdapter
     ) : BaseDecorAdapter<ArtistAdapter>(artistAdapter, R.plurals.artists) {
+
+        override fun onCounterBound(counter: TextView, count: Int) {
+            val pluralRes = if (adapter.isAlbumArtist) R.plurals.album_artists else R.plurals.artists
+            counter.text = context.resources.getQuantityString(pluralRes, count, count) + " ▾"
+            counter.setOnClickListener {
+                adapter.isAlbumArtist = !adapter.isAlbumArtist
+                adapter.prefs.edit {
+                    putBoolean("isDisplayingAlbumArtist", adapter.isAlbumArtist)
+                }
+                adapter.liveDataAgent.value =
+                    if (adapter.isAlbumArtist) adapter.mainActivity.reader.albumArtistListFlow
+                    else adapter.mainActivity.reader.artistListFlow
+            }
+        }
 
         override fun onSortButtonPressed(popupMenu: PopupMenu) {
             popupMenu.menu.findItem(R.id.album_artist_checkbox).isVisible = true

@@ -63,6 +63,7 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
         holder.shuffleAll.visibility =
             if (adapter is SongAdapter || adapter is AlbumAdapter) View.VISIBLE else View.GONE
         holder.counter.text = context.resources.getQuantityString(pluralStr, count, count)
+        onCounterBound(holder.counter, count)
         holder.sortButton.visibility =
             if (adapter.sortType.value != Sorter.Type.None || adapter.canChangeLayout) View.VISIBLE else View.GONE
         holder.sortButton.setOnClickListener { view ->
@@ -220,6 +221,7 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
         holder.shuffleAll.setOnClickListener(null)
         holder.jumpUp.setOnClickListener(null)
         holder.jumpDown.setOnClickListener(null)
+        holder.counter.setOnClickListener(null)
         super.onViewRecycled(holder)
     }
 
@@ -265,6 +267,7 @@ open class BaseDecorAdapter<T : AdapterFragment.BaseInterface<*>>(
 
     protected open fun onSortButtonPressed(popupMenu: PopupMenu) {}
     protected open fun onExtraMenuButtonPressed(menuItem: MenuItem): Boolean = false
+    protected open fun onCounterBound(counter: TextView, count: Int) {}
 
     override fun getItemCount(): Int = 1
     override fun getItemViewType(position: Int): Int = R.layout.general_decor
