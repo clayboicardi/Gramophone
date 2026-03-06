@@ -31,7 +31,9 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -675,6 +677,38 @@ class MainActivity : BaseActivity() {
                 intent.setData("package:$packageName".toUri())
                 startActivity(intent)
                 finish()
+            }
+        }
+    }
+
+    // ── Storage Permission Helpers (for FLAC tag editing) ──────────────
+
+    /**
+     * Check if we have MANAGE_EXTERNAL_STORAGE permission (Android 11+)
+     * or WRITE_EXTERNAL_STORAGE (Android 10 and below).
+     */
+    fun hasAllFilesPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            true // WRITE_EXTERNAL_STORAGE granted via manifest for SDK <= 29
+        }
+    }
+
+    /**
+     * Launch system Settings to grant "All files access" permission.
+     * Called on-demand when user first tries to edit tags.
+     */
+    fun requestAllFilesPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (_: Exception) {
+                // Fallback for devices that don't support the app-specific intent
+                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
             }
         }
     }

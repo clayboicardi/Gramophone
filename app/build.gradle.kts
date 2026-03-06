@@ -265,7 +265,8 @@ aboutLibraries {
     }
     license {
         strictMode = com.mikepenz.aboutlibraries.plugin.StrictMode.FAIL
-        allowedLicenses.addAll("Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause")
+        allowedLicenses.addAll("Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "LGPL-3.0-only",
+            "The GNU Lesser General Public License, Version 3.0")
     }
 }
 
@@ -304,6 +305,8 @@ dependencies {
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+    // FLAC/Vorbis tag reading and writing (Android-compatible JAudioTagger fork)
+    implementation("com.ealva:ealvatag:0.4.6")
     //noinspection GradleDependency newer versions need java.nio which is api 26+
     //implementation("com.github.albfernandez:juniversalchardet:2.0.3") TODO
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

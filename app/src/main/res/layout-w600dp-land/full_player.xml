@@ -70,6 +70,33 @@
             android:scaleType="centerCrop"
             app:srcCompat="@drawable/ic_default_cover" />
 
+        <ImageView
+            android:id="@+id/peek_cover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="invisible"
+            android:importantForAccessibility="no" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/album_info_card"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="22dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+        app:strokeWidth="0dp"
+        app:layout_constraintStart_toStartOf="@id/album_cover_frame"
+        app:layout_constraintEnd_toEndOf="@id/album_cover_frame"
+        app:layout_constraintTop_toTopOf="@id/album_cover_frame"
+        app:layout_constraintBottom_toBottomOf="@id/album_cover_frame">
+
+        <include layout="@layout/player_tag_info" />
+
     </com.google.android.material.card.MaterialCardView>
 
     <androidx.constraintlayout.widget.ConstraintLayout

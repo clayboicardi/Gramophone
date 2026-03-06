@@ -44,7 +44,7 @@ import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.MediaControllerViewModel
 import org.akanework.gramophone.ui.components.NowPlayingDrawable
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
-import org.akanework.gramophone.ui.fragments.DetailDialogFragment
+import org.akanework.gramophone.ui.fragments.TagDetailFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.addDate
 import uk.akane.libphonograph.items.albumId
@@ -224,7 +224,7 @@ class SongAdapter(
                 }
 
                 R.id.details -> {
-                    mainActivity.startFragment(DetailDialogFragment()) {
+                    mainActivity.startFragment(TagDetailFragment()) {
                         putString("Id", item.mediaId)
                     }
                     true

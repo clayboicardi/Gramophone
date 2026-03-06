@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.MainActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appbarlayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:stateListAnimator="@null">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsingtoolbar"
+            style="?attr/collapsingToolbarLayoutLargeStyle"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
+            app:collapsedTitleTextAppearance="?textAppearanceTitleLarge"
+            app:collapsedTitleTextColor="?attr/colorOnSurface"
+            app:expandedTitleMarginStart="24dp"
+            app:expandedTitleTextAppearance="?textAppearanceHeadlineLarge"
+            app:expandedTitleTextColor="?attr/colorOnSurface"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
+            app:title="@string/tag_detail_title">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/topAppBar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:elevation="0dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="8dp"
+                app:layout_collapseMode="pin"
+                app:navigationContentDescription="@string/back"
+                app:navigationIcon="@drawable/ic_arrow_back"
+                app:navigationIconTint="?colorOnSurface" />
+
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="88dp">
+
+            <!-- ═══ Album Art ═══ -->
+
+            <ImageView
+                android:id="@+id/album_cover"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:adjustViewBounds="true"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop"
+                app:srcCompat="@drawable/ic_default_cover" />
+
+            <!-- ═══ Section: Track Info ═══ -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="24dp"
+                android:fontFamily="sans-serif"
+                android:text="@string/tag_section_core"
+                android:textColor="?colorPrimary"
+                android:textSize="14sp"
+                app:textFontWeight="600" />
+
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="24dp" />
+
+            <!-- Title -->
+            <include layout="@layout/tag_detail_row"
+                android:id="@+id/row_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Artist -->
+            <include layout="@layout/tag_detail_row"
+                android:id="@+id/row_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Album -->
+            <include layout="@layout/tag_detail_row"
+                android:id="@+id/row_album"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Genre -->
+            <include layout="@layout/tag_detail_row"
+                android:id="@+id/row_genre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Year -->
+            <include layout="@layout/tag_detail_row"
+                android:id="@+id/row_year"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- ═══ Section: Technical ═══ -->
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="24dp"
+                android:fontFamily="sans-serif"
+                android:text="@string/tag_section_technical"
+                android:textColor="?colorPrimary"
+                android:textSize="14sp"
+                app:textFontWeight="600" />
+
+            <com.google.android.material.divider.MaterialDivider
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="24dp" />
+
+            <!-- Dynamic technical rows added programmatically -->
+            <LinearLayout
+                android:id="@+id/technical_rows_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- FAB for Edit Tags -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:contentDescription="@string/tag_edit"
+        app:srcCompat="@drawable/ic_edit"
+        app:tint="?colorOnPrimaryContainer"
+        app:backgroundTint="?colorPrimaryContainer" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -1,5 +1,8 @@
 package org.akanework.gramophone.ui.components
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ContentUris
@@ -14,8 +17,14 @@ import android.text.format.DateFormat
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
 import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -39,6 +48,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.Log
 import androidx.media3.session.MediaBrowser
 import androidx.media3.session.SessionError
@@ -75,6 +85,7 @@ import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.fadInAnimation
 import org.akanework.gramophone.logic.fadOutAnimation
+import org.akanework.gramophone.logic.getFile
 import org.akanework.gramophone.logic.getAudioFormat
 import org.akanework.gramophone.logic.getBooleanStrict
 import org.akanework.gramophone.logic.getIntStrict
@@ -92,17 +103,18 @@ import org.akanework.gramophone.logic.utils.AudioFormatDetector.AudioQuality
 import org.akanework.gramophone.logic.utils.AudioFormatDetector.SpatialFormat
 import org.akanework.gramophone.logic.utils.CalculationUtils
 import org.akanework.gramophone.logic.utils.ColorUtils
+import org.akanework.gramophone.logic.utils.FlacTagManager
 import org.akanework.gramophone.logic.utils.Flags
 import org.akanework.gramophone.ui.MainActivity
 import org.akanework.gramophone.ui.fragments.ArtistSubFragment
-import org.akanework.gramophone.ui.fragments.DetailDialogFragment
 import org.akanework.gramophone.ui.fragments.GeneralSubFragment
 import uk.akane.libphonograph.items.albumId
 import uk.akane.libphonograph.items.artistId
 import uk.akane.libphonograph.manipulator.ItemManipulator
+import kotlin.math.abs
 import kotlin.math.min
 
-@SuppressLint("NotifyDataSetChanged")
+@SuppressLint("NotifyDataSetChanged", "ClickableViewAccessibility")
 class FullBottomSheet
     (context: Context, attrs: AttributeSet?, defStyleAttr: Int, defStyleRes: Int) :
     ConstraintLayout(context, attrs, defStyleAttr, defStyleRes), Player.Listener,
@@ -214,10 +226,19 @@ class FullBottomSheet
     private var colorOnSecondaryContainerFinalColor: Int = -1
     private var colorContrastFaintedFinalColor: Int = -1
     private var lastDisposable: Disposable? = null
+    private val albumInfoCard: MaterialCardView
+    private val peekCover: ImageView
+    private var isCardFlipped = false
+    private var isSwiping = false
+    private var swipeStartX = 0f
+    private var swipeDirection = 0 // -1 = left (next), 1 = right (prev)
+    private var skipViaSwipe = false
 
     init {
         inflate(context, R.layout.full_player, this)
         bottomSheetFullCoverFrame = findViewById(R.id.album_cover_frame)
+        albumInfoCard = findViewById(R.id.album_info_card)
+        peekCover = findViewById(R.id.peek_cover)
         bottomSheetFullCover = findViewById(R.id.full_sheet_cover)
         bottomSheetFullTitle = findViewById(R.id.full_song_name)
         bottomSheetFullSubtitle = findViewById(R.id.full_song_artist)
@@ -341,11 +362,118 @@ class FullBottomSheet
             )
         }
 
-        bottomSheetFullCover.setOnClickListener {
-            activity.startFragment(DetailDialogFragment()) {
-                putString("Id", instance?.currentMediaItem?.mediaId)
+        // Tap album art → flip to show tag info on back
+        bottomSheetFullCoverFrame.setOnClickListener { if (!isSwiping) flipCard() }
+        albumInfoCard.setOnClickListener { if (!isSwiping) flipCard() }
+
+        // Continuous swipe on album art → slide current art out, next art in
+        val dragStartThreshold = 15f * context.resources.displayMetrics.density
+        val swipeTouchListener = OnTouchListener { v, event ->
+            if (isCardFlipped) return@OnTouchListener false
+            val frameWidth = bottomSheetFullCoverFrame.width.toFloat()
+            if (frameWidth <= 0) return@OnTouchListener false
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    swipeStartX = event.x
+                    isSwiping = false
+                    swipeDirection = 0
+                    // Cancel any ongoing settle animations
+                    bottomSheetFullCover.animate().cancel()
+                    peekCover.animate().cancel()
+                    false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.x - swipeStartX
+                    if (!isSwiping && abs(dx) > dragStartThreshold) {
+                        // Determine direction and check if target track exists
+                        val dir = if (dx < 0) -1 else 1
+                        if (canSwipe(dir)) {
+                            isSwiping = true
+                            swipeDirection = dir
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                            preloadPeekCover(dir)
+                        }
+                    }
+                    if (isSwiping) {
+                        val clampedDx = dx.coerceIn(-frameWidth, frameWidth)
+                        bottomSheetFullCover.translationX = clampedDx
+                        peekCover.translationX = if (swipeDirection < 0) {
+                            frameWidth + clampedDx // enters from right
+                        } else {
+                            -frameWidth + clampedDx // enters from left
+                        }
+                    }
+                    isSwiping
+                }
+                MotionEvent.ACTION_UP -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
+                    if (isSwiping) {
+                        val dx = event.x - swipeStartX
+                        val progress = abs(dx) / frameWidth
+                        if (progress > 0.35f && swipeDirection != 0) {
+                            // Complete the swipe — animate to finish
+                            val targetX = if (swipeDirection < 0) -frameWidth else frameWidth
+                            bottomSheetFullCover.animate()
+                                .translationX(targetX)
+                                .setDuration(200)
+                                .setInterpolator(AccelerateInterpolator())
+                                .start()
+                            peekCover.animate()
+                                .translationX(0f)
+                                .setDuration(200)
+                                .setInterpolator(DecelerateInterpolator())
+                                .withEndAction {
+                                    // Copy peek drawable to main cover for seamless handoff
+                                    bottomSheetFullCover.setImageDrawable(peekCover.drawable)
+                                    bottomSheetFullCover.translationX = 0f
+                                    peekCover.translationX = 0f
+                                    peekCover.visibility = INVISIBLE
+                                    skipViaSwipe = true
+                                    if (swipeDirection < 0) {
+                                        instance?.seekToNextMediaItem()
+                                    } else {
+                                        instance?.seekToPreviousMediaItem()
+                                    }
+                                    instance?.play()
+                                }
+                                .start()
+                        } else {
+                            // Snap back — cancel swipe
+                            bottomSheetFullCover.animate()
+                                .translationX(0f)
+                                .setDuration(200)
+                                .setInterpolator(DecelerateInterpolator())
+                                .start()
+                            peekCover.animate()
+                                .translationX(if (swipeDirection < 0) frameWidth else -frameWidth)
+                                .setDuration(200)
+                                .setInterpolator(DecelerateInterpolator())
+                                .withEndAction {
+                                    peekCover.visibility = INVISIBLE
+                                }
+                                .start()
+                        }
+                        v.post { isSwiping = false }
+                        true
+                    } else {
+                        false
+                    }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(false)
+                    if (isSwiping) {
+                        bottomSheetFullCover.translationX = 0f
+                        peekCover.translationX = 0f
+                        peekCover.visibility = INVISIBLE
+                    }
+                    isSwiping = false
+                    false
+                }
+                else -> false
             }
         }
+        bottomSheetFullCoverFrame.setOnTouchListener(swipeTouchListener)
+        albumInfoCard.setOnTouchListener(swipeTouchListener)
 
         bottomSheetFullTitle.setOnClickListener {
             minimize?.invoke()
@@ -1112,6 +1240,7 @@ class FullBottomSheet
         reason: Int
     ) {
         if (instance?.mediaItemCount != 0) {
+            resetCardFlip()
             lastDisposable?.dispose()
             lastDisposable = null
             loadCoverForImageView()
@@ -1186,11 +1315,195 @@ class FullBottomSheet
                     scale(Scale.FILL)
                     target(onSuccess = {
                         bottomSheetFullCover.setImageDrawable(it.asDrawable(context.resources))
+                        if (skipViaSwipe) {
+                            // Swipe already handled the visual transition
+                            skipViaSwipe = false
+                        } else {
+                            // Bounce-in animation for non-swipe skips (notification, etc.)
+                            bottomSheetFullCover.scaleX = 0.92f
+                            bottomSheetFullCover.scaleY = 0.92f
+                            bottomSheetFullCover.alpha = 0.4f
+                            bottomSheetFullCover.animate()
+                                .scaleX(1f).scaleY(1f).alpha(1f)
+                                .setDuration(350)
+                                .setInterpolator(OvershootInterpolator(2.5f))
+                                .start()
+                        }
                     }, onError = {
                         bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
+                        if (skipViaSwipe) {
+                            skipViaSwipe = false
+                        } else {
+                            bottomSheetFullCover.scaleX = 0.92f
+                            bottomSheetFullCover.scaleY = 0.92f
+                            bottomSheetFullCover.alpha = 0.4f
+                            bottomSheetFullCover.animate()
+                                .scaleX(1f).scaleY(1f).alpha(1f)
+                                .setDuration(350)
+                                .setInterpolator(OvershootInterpolator(2.5f))
+                                .start()
+                        }
                     }) // do not react to onStart() which sets placeholder
                     error(R.drawable.ic_default_cover)
                     allowHardware(bottomSheetFullCover.isHardwareAccelerated)
+                }.build()
+            )
+        }
+    }
+
+    // ── Card flip animation ─────────────────────────────────────────────
+
+    private fun flipCard() {
+        val front = bottomSheetFullCoverFrame
+        val back = albumInfoCard
+
+        val showCard: View
+        val hideCard: View
+        if (isCardFlipped) {
+            showCard = back; hideCard = front
+        } else {
+            showCard = front; hideCard = back
+            populateTagInfo()
+        }
+
+        val density = context.resources.displayMetrics.density
+        showCard.cameraDistance = 12000 * density
+        hideCard.cameraDistance = 12000 * density
+
+        // First half: rotate visible card out (0° → 90°)
+        ObjectAnimator.ofFloat(showCard, "rotationY", 0f, 90f).apply {
+            duration = 200
+            interpolator = AccelerateInterpolator()
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    showCard.visibility = INVISIBLE
+                    hideCard.rotationY = -90f
+                    hideCard.visibility = VISIBLE
+                    // Second half: rotate new card in (-90° → 0°)
+                    ObjectAnimator.ofFloat(hideCard, "rotationY", -90f, 0f).apply {
+                        duration = 200
+                        interpolator = DecelerateInterpolator()
+                    }.start()
+                }
+            })
+        }.start()
+
+        isCardFlipped = !isCardFlipped
+    }
+
+    private fun resetCardFlip() {
+        if (isCardFlipped) {
+            albumInfoCard.visibility = GONE
+            albumInfoCard.rotationY = 0f
+            bottomSheetFullCoverFrame.visibility = VISIBLE
+            bottomSheetFullCoverFrame.rotationY = 0f
+            isCardFlipped = false
+        }
+    }
+
+    private fun populateTagInfo() {
+        val mediaItem = instance?.currentMediaItem ?: return
+        val meta = mediaItem.mediaMetadata
+
+        // Instant values from MediaStore
+        albumInfoCard.findViewById<TextView>(R.id.info_title_value)?.text =
+            meta.title?.toString() ?: ""
+        albumInfoCard.findViewById<TextView>(R.id.info_artist_value)?.text =
+            meta.artist?.toString() ?: ""
+        albumInfoCard.findViewById<TextView>(R.id.info_album_value)?.text =
+            meta.albumTitle?.toString() ?: ""
+        albumInfoCard.findViewById<TextView>(R.id.info_genre_value)?.text =
+            meta.genre?.toString() ?: ""
+        albumInfoCard.findViewById<TextView>(R.id.info_year_value)?.text =
+            (meta.releaseYear ?: meta.recordingYear)?.toString() ?: ""
+
+        // Clear technical fields while loading
+        albumInfoCard.findViewById<TextView>(R.id.info_format_value)?.text = "..."
+        albumInfoCard.findViewById<TextView>(R.id.info_sample_rate_value)?.text = "..."
+        albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text = "..."
+        albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text = "..."
+
+        // Load accurate data from file tags in background
+        val filePath = mediaItem.getFile()?.path ?: return
+        CoroutineScope(Dispatchers.IO).launch {
+            val tags = FlacTagManager.readAllTags(filePath)
+            val audioProps = FlacTagManager.readAudioProperties(filePath)
+            withContext(Dispatchers.Main) {
+                // Override with ealvatag values
+                tags["TITLE"]?.let {
+                    albumInfoCard.findViewById<TextView>(R.id.info_title_value)?.text = it
+                }
+                tags["ARTIST"]?.let {
+                    albumInfoCard.findViewById<TextView>(R.id.info_artist_value)?.text = it
+                }
+                tags["ALBUM"]?.let {
+                    albumInfoCard.findViewById<TextView>(R.id.info_album_value)?.text = it
+                }
+                tags["GENRE"]?.let {
+                    albumInfoCard.findViewById<TextView>(R.id.info_genre_value)?.text = it
+                }
+                tags["YEAR"]?.let {
+                    albumInfoCard.findViewById<TextView>(R.id.info_year_value)?.text = it
+                }
+                if (audioProps != null) {
+                    albumInfoCard.findViewById<TextView>(R.id.info_format_value)?.text =
+                        audioProps.format
+                    albumInfoCard.findViewById<TextView>(R.id.info_sample_rate_value)?.text =
+                        context.getString(R.string.tag_sample_rate_format, audioProps.sampleRate)
+                    albumInfoCard.findViewById<TextView>(R.id.info_bitrate_value)?.text =
+                        "${audioProps.bitRate} kbps"
+                }
+                val bpm = tags["BPM"] ?: tags["TMPO"] ?: tags["TEMPO"]
+                albumInfoCard.findViewById<TextView>(R.id.info_bpm_value)?.text = bpm ?: "—"
+            }
+        }
+    }
+
+    private fun canSwipe(direction: Int): Boolean {
+        val timeline = instance?.currentTimeline ?: return false
+        val currentIndex = instance?.currentMediaItemIndex ?: return false
+        val repeatMode = instance?.repeatMode ?: Player.REPEAT_MODE_OFF
+        val shuffleEnabled = instance?.shuffleModeEnabled ?: false
+        val targetIndex = if (direction < 0) {
+            timeline.getNextWindowIndex(currentIndex, repeatMode, shuffleEnabled)
+        } else {
+            timeline.getPreviousWindowIndex(currentIndex, repeatMode, shuffleEnabled)
+        }
+        return targetIndex != C.INDEX_UNSET
+    }
+
+    private fun preloadPeekCover(direction: Int) {
+        val timeline = instance?.currentTimeline ?: return
+        val currentIndex = instance?.currentMediaItemIndex ?: return
+        val repeatMode = instance?.repeatMode ?: Player.REPEAT_MODE_OFF
+        val shuffleEnabled = instance?.shuffleModeEnabled ?: false
+        val targetIndex = if (direction < 0) {
+            timeline.getNextWindowIndex(currentIndex, repeatMode, shuffleEnabled)
+        } else {
+            timeline.getPreviousWindowIndex(currentIndex, repeatMode, shuffleEnabled)
+        }
+        if (targetIndex == C.INDEX_UNSET) return
+        val window = Timeline.Window()
+        timeline.getWindow(targetIndex, window)
+        val artUri = window.mediaItem.mediaMetadata.artworkUri
+        val frameWidth = bottomSheetFullCoverFrame.width.toFloat()
+        // Position off-screen in the swipe direction
+        peekCover.translationX = if (direction < 0) frameWidth else -frameWidth
+        peekCover.setImageResource(R.drawable.ic_default_cover)
+        peekCover.visibility = VISIBLE
+        if (artUri != null && bottomSheetFullCover.width > 0) {
+            context.imageLoader.enqueue(
+                ImageRequest.Builder(context).apply {
+                    data(artUri)
+                    size(bottomSheetFullCover.width, bottomSheetFullCover.height)
+                    scale(Scale.FILL)
+                    target(onSuccess = {
+                        peekCover.setImageDrawable(it.asDrawable(context.resources))
+                    }, onError = {
+                        peekCover.setImageDrawable(it?.asDrawable(context.resources))
+                    })
+                    error(R.drawable.ic_default_cover)
+                    allowHardware(peekCover.isHardwareAccelerated)
                 }.build()
             )
         }
