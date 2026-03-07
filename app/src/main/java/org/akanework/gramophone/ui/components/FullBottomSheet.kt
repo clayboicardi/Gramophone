@@ -638,6 +638,10 @@ class FullBottomSheet
 
         bottomSheetFavoriteButton.addOnCheckedChangeListener(this)
 
+        findViewById<MaterialButton>(R.id.equalizer).setOnClickListener {
+            ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
+            EqualizerBottomSheet().show(activity.supportFragmentManager, "equalizer")
+        }
         bottomSheetPlaylistButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
             if (instance != null)

@@ -317,6 +317,7 @@
     <string name="bitrate_format">%1$d kbps</string>
     <string name="bitrate_unknown">Unknown bitrate</string>
     <string name="package_type_explainer">JAMZ!!! APKs can be created by anyone, because JAMZ!!! is open source. To help remembering where an APK came from, JAMZ!!! provides the package type.\n\nThe most common type is Release, which is obtained from F-Droid, Google Play, GitHub or IzzyOnDroid.\nThe CI package type refers to automated builds made for every commit on GitHub. These builds may be unstable.\nFor other package types, the name should give a reasonable hint to where the APK is from.</string>
+    <string name="settings_original_project">Original project (Gramophone)</string>
     <string name="settings_open_source_licenses">Open source licenses</string>
     <string name="oh_no">Oh no!</string>
     <string name="gramophone_crashed_explainer2">JAMZ!!! crashed :(\n\nPlease send me a bug report so issues like what lead to this crash can be fixed!\n\nEach situation as unique as music, without your help it is likely this bug will <b>NOT</b> be fixed!</string>
@@ -565,4 +566,13 @@
     <string name="tag_channels_stereo">Stereo</string>
     <string name="tag_channels_mono">Mono</string>
     <string name="tag_channels_format">%d channels</string>
+
+    <!-- Equalizer -->
+    <string name="equalizer">Equalizer</string>
+    <string name="bass_boost">Bass Boost</string>
+    <string name="virtualizer">Virtualizer</string>
+    <string name="preset">Preset</string>
+    <string name="custom">Custom</string>
+    <string name="reset_to_flat">Reset to Flat</string>
+    <string name="eq_not_supported">Equalizer not supported on this device</string>
 </resources>

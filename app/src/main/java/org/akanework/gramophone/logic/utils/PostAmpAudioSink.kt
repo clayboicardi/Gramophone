@@ -97,6 +97,7 @@ class PostAmpAudioSink(
     }
     private var volumeEffect: VolumeEffectWrapper? = null
     private var dpeEffect: DynamicsProcessingEffectWrapper? = null
+    private var eqEffect: EqEffectWrapper? = null
     private var needToLogWhyNoEffect = true
     private var offloadEnabled: Boolean? = null
     private var format: Format? = null
@@ -228,6 +229,13 @@ class PostAmpAudioSink(
                             "E=$isDpeAvailable o=$isDpeOffloadable O=$offloadEnabled")
                 needToLogWhyNoEffect = false
             }
+        }
+        // EQ is independent of DPE/Volume — always create if session is available
+        if (eqEffect == null && audioSessionId != 0) {
+            eqEffect = EqEffectWrapper(context)
+            EqEffectWrapper.setInstance(eqEffect)
+            eqEffect!!.audioSessionId = audioSessionId
+            eqEffect!!.created = true
         }
     }
 
@@ -471,6 +479,7 @@ class PostAmpAudioSink(
             audioSessionId = id
             dpeEffect?.audioSessionId = id
             volumeEffect?.audioSessionId = id
+            eqEffect?.audioSessionId = id
         }
         createEffectsIfNeeded()
     }
@@ -543,6 +552,9 @@ class PostAmpAudioSink(
         dpeEffect = null
         volumeEffect?.releaseSafe()
         volumeEffect = null
+        eqEffect?.releaseSafe()
+        EqEffectWrapper.setInstance(null)
+        eqEffect = null
         context.unregisterReceiver(receiver)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {

@@ -31,6 +31,13 @@
     public static void setForegroundServiceNotification(...);
 }
 
+# Audio visualizer pipeline — singleton accessed via companion object, fed by TeeAudioProcessor
+-keep class org.akanework.gramophone.logic.utils.VisualizerProcessor {
+    <fields>;
+    <methods>;
+}
+-keep class org.akanework.gramophone.ui.components.VisualizerView { *; }
+
 # JNI
 -keep class org.nift4.gramophone.hificore.NativeTrack {
     onAudioDeviceUpdate(...);

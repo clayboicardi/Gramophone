@@ -29,4 +29,7 @@
     <dimen name="lyric_widget_tl">15sp</dimen>
     <dimen name="lyric_widget_tb">12sp</dimen>
     <dimen name="folder_card_height">75dp</dimen>
+    <!-- Equalizer band slider dimensions -->
+    <dimen name="eq_band_width">56dp</dimen>
+    <dimen name="eq_slider_height">180dp</dimen>
 </resources>

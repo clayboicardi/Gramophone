@@ -499,6 +499,24 @@
             app:tooltipText="@string/timer" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/equalizer"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/rp_buttons"
+            android:contentDescription="@string/equalizer"
+            android:insetLeft="0dp"
+            android:insetTop="0dp"
+            android:insetRight="0dp"
+            android:insetBottom="0dp"
+            app:icon="@drawable/ic_equalizer"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp"
+            app:iconTint="?attr/colorOnSurface"
+            app:tooltipText="@string/equalizer" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/playlist"
             android:layout_width="48dp"
             android:layout_height="48dp"
