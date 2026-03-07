@@ -30,7 +30,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.akanework.gramophone.BuildConfig
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.ColorUtils
-import org.akanework.gramophone.logic.utils.data.Contributors
 import org.akanework.gramophone.ui.fragments.BasePreferenceFragment
 import org.akanework.gramophone.ui.fragments.BaseSettingsActivity
 
@@ -43,13 +42,8 @@ class AboutSettingsFragment : BasePreferenceFragment() {
         setPreferencesFromResource(R.xml.settings_about, rootKey)
         val versionPrefs = findPreference<Preference>("app_version")
         val releaseType = findPreference<Preference>("package_type")
-        val contributorsPref = findPreference<Preference>("contributors")
         versionPrefs!!.summary = BuildConfig.MY_VERSION_NAME
         releaseType!!.summary = BuildConfig.RELEASE_TYPE
-        contributorsPref!!.summary =
-            requireContext().getString(
-                R.string.settings_contributors_click,
-                Contributors.LIST.subList(0, 5).joinToString { it.login })
     }
 
     override fun onPreferenceTreeClick(preference: Preference): Boolean {
@@ -75,12 +69,10 @@ class AboutSettingsFragment : BasePreferenceFragment() {
                 BuildConfig.VERSION_NAME
             val aboutTextView = rootView.findViewById<TextView>(R.id.about_text)!!
             aboutTextView.text = requireContext()
-                .getString(R.string.opensource_info, "© 2023-2025 AkaneTan, nift4 and contributors")
+                .getString(R.string.opensource_info, "© 2026 Clayboi\nBased on Gramophone by AkaneTan, nift4 and contributors")
             // does not render correctly on old versions for mysterious reasons
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)
                 rootView.findViewById<View>(R.id.iconCard)!!.visibility = View.GONE
-        } else if (preference.key == "contributors") {
-            startActivity(ContributorsSettingsActivity::class.java)
         } else if (preference.key == "package_type") {
             MaterialAlertDialogBuilder(requireContext())
                 .setTitle(R.string.settings_package_type)
@@ -92,8 +84,9 @@ class AboutSettingsFragment : BasePreferenceFragment() {
                 .setTitle(R.string.settings_open_source_licenses)
                 .setMessage(
                     """
-                        Copyright (C) 2023-2024 AkaneTan
-                        Copyright (C) 2023-2025 nift4
+                        Copyright (C) 2026 Clayboi (JAMZ!!! fork)
+                        Copyright (C) 2023-2024 AkaneTan (Gramophone)
+                        Copyright (C) 2023-2025 nift4 (Gramophone)
 
                         This program is free software: you can redistribute it and/or modify
                         it under the terms of the GNU General Public License as published by

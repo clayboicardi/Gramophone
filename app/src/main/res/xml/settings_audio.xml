@@ -65,7 +65,7 @@
         android:title="@string/settings_category_visualizer">
 
         <SwitchPreferenceCompat
-            android:defaultValue="false"
+            android:defaultValue="true"
             android:key="audio_visualizer"
             android:layout="@layout/preference_switch"
             android:summary="@string/settings_visualizer_summary"
