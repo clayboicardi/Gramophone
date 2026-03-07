@@ -38,6 +38,13 @@
 }
 -keep class org.akanework.gramophone.ui.components.VisualizerView { *; }
 
+# Equalizer audio effects — singleton accessed via companion object
+-keep class org.akanework.gramophone.logic.utils.EqEffectWrapper {
+    <fields>;
+    <methods>;
+}
+-keep class org.akanework.gramophone.ui.components.EqualizerBottomSheet { *; }
+
 # JNI
 -keep class org.nift4.gramophone.hificore.NativeTrack {
     onAudioDeviceUpdate(...);
