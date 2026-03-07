@@ -246,11 +246,14 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
 
     private fun refreshBandSliders(eq: EqEffectWrapper) {
         suppressSliderCallbacks = true
-        for (i in bandSliders.indices) {
-            val level = eq.bandLevels.getOrElse(i) { 0 }.toFloat()
-            bandSliders[i].value = level
+        try {
+            for (i in bandSliders.indices) {
+                val level = eq.bandLevels.getOrElse(i) { 0 }.toFloat()
+                bandSliders[i].value = level
+            }
+        } finally {
+            suppressSliderCallbacks = false
         }
-        suppressSliderCallbacks = false
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────

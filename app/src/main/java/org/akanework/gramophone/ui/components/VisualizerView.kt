@@ -43,6 +43,7 @@ class VisualizerView @JvmOverloads constructor(
     /** When true, onDraw pulls from VisualizerProcessor and re-schedules animation. */
     var isActive = false
         set(value) {
+            if (field == value) return
             field = value
             if (value) postInvalidateOnAnimation()
         }
@@ -69,7 +70,10 @@ class VisualizerView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
+        if (w <= 0f || h <= 0f) {
+            // Skip scheduling frames for zero-sized views
+            return
+        }
 
         // Pull latest magnitudes from the processor (thread-safe copy)
         if (isActive) {

@@ -373,9 +373,9 @@ class SongAdapter(
                     context.getString(R.string.add_to_queue),
                     Toast.LENGTH_SHORT
                 ).show()
+                // Snap item back to original position
+                notifyItemChanged(position)
             }
-            // Snap item back to original position
-            notifyItemChanged(position)
         }
 
         override fun onChildDraw(

@@ -242,6 +242,7 @@ class FullBottomSheet
     private val visualizerAmbient: VisualizerView
     private var visualizerEnabled = false
     private var isCardFlipped = false
+    private var cardFlipSpring: SpringAnimation? = null
     private var isSwiping = false
     private var swipeStartX = 0f
     private var swipeDirection = 0 // -1 = left (next), 1 = right (prev)
@@ -1482,11 +1483,13 @@ class FullBottomSheet
                 scale(Scale.FILL)
                 allowHardware(false) // need software bitmap for color filtering
                 target(onSuccess = {
+                    if (!isAttachedToWindow) return@target
                     val drawable = it.asDrawable(context.resources)
                     albumBlurBg.setImageDrawable(drawable)
                     lyricsBlurBg.setImageDrawable(drawable.constantState?.newDrawable()?.mutate())
                     albumBlurBg.animate().alpha(0.5f).setDuration(300).start()
                 }, onError = {
+                    if (!isAttachedToWindow) return@target
                     albumBlurBg.setImageDrawable(null)
                     lyricsBlurBg.setImageDrawable(null)
                     albumBlurBg.alpha = 0f
@@ -1596,7 +1599,8 @@ class FullBottomSheet
                     hideCard.rotationY = -90f
                     hideCard.visibility = VISIBLE
                     // Second half: spring-based settle for physics feel
-                    SpringAnimation(hideCard, DynamicAnimation.ROTATION_Y).apply {
+                    cardFlipSpring?.cancel()
+                    cardFlipSpring = SpringAnimation(hideCard, DynamicAnimation.ROTATION_Y).apply {
                         spring = SpringForce(0f).apply {
                             dampingRatio = 0.65f
                             stiffness = 1200f
@@ -1661,6 +1665,7 @@ class FullBottomSheet
             val tags = FlacTagManager.readAllTags(filePath)
             val audioProps = FlacTagManager.readAudioProperties(filePath)
             withContext(Dispatchers.Main) {
+                if (!isAttachedToWindow) return@withContext
                 // Override with ealvatag values (only if non-blank)
                 tags["TITLE"]?.ifBlank { null }?.let {
                     albumInfoCard.findViewById<TextView>(R.id.info_title_value)?.text = it
@@ -1873,6 +1878,13 @@ class FullBottomSheet
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         disableVisualizer()
+        lyricsBlurAnimator?.cancel()
+        lyricsBlurAnimator = null
+        cardFlipSpring?.cancel()
+        cardFlipSpring = null
+        tagReadJob?.cancel()
+        blurDisposable?.dispose()
+        blurDisposable = null
     }
 
     private val positionRunnable = object : Runnable {
