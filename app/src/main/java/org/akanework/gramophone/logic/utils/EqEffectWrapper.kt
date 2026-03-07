@@ -280,11 +280,13 @@ class EqEffectWrapper(private val context: Context) : EffectWrapper<Equalizer>()
         currentPreset = -1
         for (i in 0 until numberOfBands.toInt()) {
             val level = prefs.getInt("${PREF_EQ_BAND_PREFIX}$i", 0).toShort()
-            bandLevels[i] = level
             try {
                 eq.setBandLevel(i.toShort(), level)
+                // Read back actual value — hardware may clamp to its supported range
+                bandLevels[i] = eq.getBandLevel(i.toShort())
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to restore band $i level $level", e)
+                bandLevels[i] = 0
             }
         }
     }
