@@ -24,7 +24,6 @@ import android.view.ViewPropertyAnimator
 import android.view.WindowInsets
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -34,6 +33,9 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.TooltipCompat
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import androidx.core.content.edit
 import androidx.core.graphics.Insets
 import androidx.core.graphics.TypefaceCompat
@@ -245,6 +247,17 @@ class FullBottomSheet
     private var swipeDirection = 0 // -1 = left (next), 1 = right (prev)
     private var skipViaSwipe = false
 
+    // Spring animations for physics-based UI responses
+    private lateinit var playBtnScaleXSpring: SpringAnimation
+    private lateinit var playBtnScaleYSpring: SpringAnimation
+    private lateinit var coverScaleXSpring: SpringAnimation
+    private lateinit var coverScaleYSpring: SpringAnimation
+    private lateinit var nextBtnScaleXSpring: SpringAnimation
+    private lateinit var nextBtnScaleYSpring: SpringAnimation
+    private lateinit var prevBtnScaleXSpring: SpringAnimation
+    private lateinit var prevBtnScaleYSpring: SpringAnimation
+    private lateinit var swipeSnapBackSpring: SpringAnimation
+
     init {
         inflate(context, R.layout.full_player, this)
         bottomSheetFullCoverFrame = findViewById(R.id.album_cover_frame)
@@ -280,6 +293,63 @@ class FullBottomSheet
         bottomSheetLyricButton = findViewById(R.id.lyrics)
         bottomSheetFullLyricView = findViewById(R.id.lyric_frame)
         bottomSheetFullQualityDetails = findViewById(R.id.quality_details)
+
+        // Initialize spring animations
+        playBtnScaleXSpring = SpringAnimation(bottomSheetFullControllerButton, DynamicAnimation.SCALE_X).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        playBtnScaleYSpring = SpringAnimation(bottomSheetFullControllerButton, DynamicAnimation.SCALE_Y).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        coverScaleXSpring = SpringAnimation(bottomSheetFullCover, DynamicAnimation.SCALE_X).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = 0.55f
+                stiffness = 800f
+            }
+        }
+        coverScaleYSpring = SpringAnimation(bottomSheetFullCover, DynamicAnimation.SCALE_Y).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = 0.55f
+                stiffness = 800f
+            }
+        }
+        nextBtnScaleXSpring = SpringAnimation(bottomSheetFullNextButton, DynamicAnimation.SCALE_X).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        nextBtnScaleYSpring = SpringAnimation(bottomSheetFullNextButton, DynamicAnimation.SCALE_Y).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        prevBtnScaleXSpring = SpringAnimation(bottomSheetFullPreviousButton, DynamicAnimation.SCALE_X).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        prevBtnScaleYSpring = SpringAnimation(bottomSheetFullPreviousButton, DynamicAnimation.SCALE_Y).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        swipeSnapBackSpring = SpringAnimation(bottomSheetFullCover, DynamicAnimation.TRANSLATION_X).apply {
+            spring = SpringForce(0f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+
         fullPlayerFinalColor = MaterialColors.getColor(
             this,
             com.google.android.material.R.attr.colorSurface
@@ -470,12 +540,8 @@ class FullBottomSheet
                                 }
                                 .start()
                         } else {
-                            // Snap back — cancel swipe
-                            bottomSheetFullCover.animate()
-                                .translationX(0f)
-                                .setDuration(200)
-                                .setInterpolator(DecelerateInterpolator())
-                                .start()
+                            // Snap back — spring physics for elastic feel
+                            swipeSnapBackSpring.animateToFinalPosition(0f)
                             peekCover.animate()
                                 .translationX(if (swipeDirection < 0) frameWidth else -frameWidth)
                                 .setDuration(200)
@@ -577,9 +643,35 @@ class FullBottomSheet
             if (instance != null)
                 PlaylistQueueSheet(wrappedContext ?: context, activity).show()
         }
+        bottomSheetFullControllerButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    playBtnScaleXSpring.animateToFinalPosition(0.85f)
+                    playBtnScaleYSpring.animateToFinalPosition(0.85f)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    playBtnScaleXSpring.animateToFinalPosition(1f)
+                    playBtnScaleYSpring.animateToFinalPosition(1f)
+                }
+            }
+            false // Let click listener still fire
+        }
         bottomSheetFullControllerButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
             instance?.playOrPause()
+        }
+        bottomSheetFullPreviousButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    prevBtnScaleXSpring.animateToFinalPosition(0.85f)
+                    prevBtnScaleYSpring.animateToFinalPosition(0.85f)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    prevBtnScaleXSpring.animateToFinalPosition(1f)
+                    prevBtnScaleYSpring.animateToFinalPosition(1f)
+                }
+            }
+            false
         }
         bottomSheetFullPreviousButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
@@ -589,6 +681,19 @@ class FullBottomSheet
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.LONG_PRESS)
             instance?.seekBack()
             true
+        }
+        bottomSheetFullNextButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    nextBtnScaleXSpring.animateToFinalPosition(0.85f)
+                    nextBtnScaleYSpring.animateToFinalPosition(0.85f)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    nextBtnScaleXSpring.animateToFinalPosition(1f)
+                    nextBtnScaleYSpring.animateToFinalPosition(1f)
+                }
+            }
+            false
         }
         bottomSheetFullNextButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
@@ -724,7 +829,7 @@ class FullBottomSheet
             bottomSheetFullCover.setClip(prefs.getBooleanStrict("cookie_cover", false))
         }
         if (key == null || key == "audio_visualizer") {
-            visualizerEnabled = prefs.getBoolean("audio_visualizer", false)
+            visualizerEnabled = prefs.getBoolean("audio_visualizer", true)
             if (visualizerEnabled) enableVisualizer() else disableVisualizer()
         }
     }
@@ -1429,29 +1534,26 @@ class FullBottomSheet
                             // Swipe already handled the visual transition
                             skipViaSwipe = false
                         } else {
-                            // Bounce-in animation for non-swipe skips (notification, etc.)
-                            bottomSheetFullCover.scaleX = 0.92f
-                            bottomSheetFullCover.scaleY = 0.92f
+                            // Spring bounce-in for non-swipe skips (notification, etc.)
+                            bottomSheetFullCover.scaleX = 0.88f
+                            bottomSheetFullCover.scaleY = 0.88f
                             bottomSheetFullCover.alpha = 0.4f
-                            bottomSheetFullCover.animate()
-                                .scaleX(1f).scaleY(1f).alpha(1f)
-                                .setDuration(350)
-                                .setInterpolator(OvershootInterpolator(2.5f))
-                                .start()
+                            bottomSheetFullCover.animate().alpha(1f).setDuration(200).start()
+                            coverScaleXSpring.animateToFinalPosition(1f)
+                            coverScaleYSpring.animateToFinalPosition(1f)
                         }
                     }, onError = {
                         bottomSheetFullCover.setImageDrawable(it?.asDrawable(context.resources))
                         if (skipViaSwipe) {
                             skipViaSwipe = false
                         } else {
-                            bottomSheetFullCover.scaleX = 0.92f
-                            bottomSheetFullCover.scaleY = 0.92f
+                            // Spring bounce-in for non-swipe skips (notification, etc.)
+                            bottomSheetFullCover.scaleX = 0.88f
+                            bottomSheetFullCover.scaleY = 0.88f
                             bottomSheetFullCover.alpha = 0.4f
-                            bottomSheetFullCover.animate()
-                                .scaleX(1f).scaleY(1f).alpha(1f)
-                                .setDuration(350)
-                                .setInterpolator(OvershootInterpolator(2.5f))
-                                .start()
+                            bottomSheetFullCover.animate().alpha(1f).setDuration(200).start()
+                            coverScaleXSpring.animateToFinalPosition(1f)
+                            coverScaleYSpring.animateToFinalPosition(1f)
                         }
                     }) // do not react to onStart() which sets placeholder
                     error(R.drawable.ic_default_cover)
@@ -1489,11 +1591,15 @@ class FullBottomSheet
                     showCard.visibility = INVISIBLE
                     hideCard.rotationY = -90f
                     hideCard.visibility = VISIBLE
-                    // Second half: rotate new card in (-90° → 0°)
-                    ObjectAnimator.ofFloat(hideCard, "rotationY", -90f, 0f).apply {
-                        duration = 200
-                        interpolator = DecelerateInterpolator()
-                    }.start()
+                    // Second half: spring-based settle for physics feel
+                    SpringAnimation(hideCard, DynamicAnimation.ROTATION_Y).apply {
+                        spring = SpringForce(0f).apply {
+                            dampingRatio = 0.65f
+                            stiffness = 1200f
+                        }
+                        setStartValue(-90f)
+                        start()
+                    }
                 }
             })
         }.start()

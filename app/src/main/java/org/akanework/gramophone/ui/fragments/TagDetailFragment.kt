@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import android.view.MotionEvent
+import androidx.dynamicanimation.animation.DynamicAnimation
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.enableEdgeToEdgePaddingListener
 import org.akanework.gramophone.logic.getFile
@@ -141,7 +145,33 @@ class TagDetailFragment : BaseFragment(false) {
         }
 
         // -- FAB: Edit (placeholder for Phase 3) --
-        rootView.findViewById<FloatingActionButton>(R.id.fab_edit).setOnClickListener {
+        val fab = rootView.findViewById<FloatingActionButton>(R.id.fab_edit)
+        val fabScaleXSpring = SpringAnimation(fab, DynamicAnimation.SCALE_X).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        val fabScaleYSpring = SpringAnimation(fab, DynamicAnimation.SCALE_Y).apply {
+            spring = SpringForce(1f).apply {
+                dampingRatio = SpringForce.DAMPING_RATIO_MEDIUM_BOUNCY
+                stiffness = SpringForce.STIFFNESS_MEDIUM
+            }
+        }
+        fab.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    fabScaleXSpring.animateToFinalPosition(0.85f)
+                    fabScaleYSpring.animateToFinalPosition(0.85f)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    fabScaleXSpring.animateToFinalPosition(1f)
+                    fabScaleYSpring.animateToFinalPosition(1f)
+                }
+            }
+            false
+        }
+        fab.setOnClickListener {
             if (!mainActivity.hasAllFilesPermission()) {
                 Snackbar.make(rootView,
                     R.string.tag_permission_needed, Snackbar.LENGTH_LONG)
