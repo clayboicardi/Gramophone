@@ -10,3 +10,23 @@
 .externalNativeBuild
 .cxx
 local.properties
+*.jks
+*.keystore
+
+# Build/debug output
+adb_*.txt
+build_*.txt
+logcat_out.txt
+
+# Local build scripts
+install_debug.bat
+
+# Design working files
+process_logo.py
+jamz-logo-*.png
+
+# Session documentation (not code — context lives in knowledge graph)
+Edit Logs/
+*-handoff.md
+*-implementation-plan.md
+*-context-transfer.md
