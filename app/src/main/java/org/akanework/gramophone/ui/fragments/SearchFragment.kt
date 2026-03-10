@@ -70,7 +70,7 @@ class SearchFragment : BaseFragment(true) {
 
         // ── Filtered flows ──────────────────────────────────────────────
 
-        val filteredArtistFlow = mainActivity.reader.artistListFlow
+        val filteredArtistFlow = mainActivity.reader.albumArtistListFlow
             .combine(trimmedQuery) { artists, query ->
                 if (query.isBlank()) emptyList()
                 else artists.filter { artist ->
@@ -119,6 +119,7 @@ class SearchFragment : BaseFragment(true) {
 
         val artistAdapter = ArtistAdapter(
             fragment = this,
+            isAlbumArtist = true,
             liveData = filteredArtistFlow.map { it.take(maxPerSection) },
             isSubFragment = R.id.search
         )

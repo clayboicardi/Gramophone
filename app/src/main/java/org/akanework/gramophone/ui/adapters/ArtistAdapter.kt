@@ -37,7 +37,7 @@ import uk.akane.libphonograph.items.Artist
 class ArtistAdapter(
     fragment: Fragment,
     private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(fragment.requireContext().applicationContext),
-    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", false),
+    var isAlbumArtist: Boolean = prefs.getBooleanStrict("isDisplayingAlbumArtist", true),
     liveData: Flow<List<Artist>?> = (fragment.requireActivity() as MainActivity).let {
         if (isAlbumArtist)
             it.reader.albumArtistListFlow else it.reader.artistListFlow

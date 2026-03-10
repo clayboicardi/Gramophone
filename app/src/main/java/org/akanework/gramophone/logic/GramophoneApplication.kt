@@ -198,6 +198,11 @@ class GramophoneApplication : Application(), SingletonImageLoader.Factory,
             })
         }
         uacManager = UacManager(this)
+        // One-time migration: flip to album artist view for existing installs
+        if (!prefs.contains("albumArtistMigrationDone")) {
+            prefs.edit().putBoolean("isDisplayingAlbumArtist", true)
+                .putBoolean("albumArtistMigrationDone", true).apply()
+        }
         Flags.PLAYLIST_EDITING = prefs.getBooleanStrict("playlist_editing", false)
         reader = FlowReader(
             this,
