@@ -21,6 +21,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.text.TextOutput
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import org.akanework.gramophone.logic.utils.PostAmpAudioSink
+import org.akanework.gramophone.logic.utils.ParametricEqProcessor
 import org.akanework.gramophone.logic.utils.ReplayGainAudioProcessor
 import org.akanework.gramophone.logic.utils.VisualizerProcessor
 import org.nift4.alacdecoder.AlacRenderer
@@ -105,10 +106,12 @@ class GramophoneRenderFactory(
             builder.setEnableFloatOutput(true)
         }
         val teeProcessor = TeeAudioProcessor(VisualizerProcessor())
+        val parametricEqProcessor = ParametricEqProcessor()
+        ParametricEqProcessor.setInstance(parametricEqProcessor)
         builder.setAudioProcessorChain(object : AudioProcessorChain {
             override fun getAudioProcessors(inputFormat: Format): Array<out AudioProcessor> {
                 rgAp.setRootFormat(inputFormat)
-                return arrayOf(rgAp, teeProcessor)
+                return arrayOf(rgAp, parametricEqProcessor, teeProcessor)
             }
 
             override fun applyPlaybackParameters(playbackParameters: PlaybackParameters): PlaybackParameters {

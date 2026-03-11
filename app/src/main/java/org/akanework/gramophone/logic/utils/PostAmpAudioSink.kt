@@ -555,6 +555,7 @@ class PostAmpAudioSink(
         eqEffect?.releaseSafe()
         EqEffectWrapper.setInstance(null)
         eqEffect = null
+        ParametricEqProcessor.setInstance(null)
         context.unregisterReceiver(receiver)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             try {
