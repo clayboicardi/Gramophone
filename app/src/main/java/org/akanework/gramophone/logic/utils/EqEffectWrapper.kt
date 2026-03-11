@@ -7,6 +7,8 @@ import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import androidx.media3.common.util.Log
 import androidx.preference.PreferenceManager
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Wraps Android's Equalizer, BassBoost, and Virtualizer audio effects.
@@ -26,6 +28,8 @@ class EqEffectWrapper(private val context: Context) : EffectWrapper<Equalizer>()
         private const val PREF_EQ_BAND_PREFIX = "eq_band_"
         private const val PREF_BASS_BOOST = "eq_bass_boost"
         private const val PREF_VIRTUALIZER = "eq_virtualizer"
+        private const val PREF_PROFILE_NAMES = "eq_profile_names"
+        private const val PREF_PROFILE_PREFIX = "eq_profile_"
 
         /** Singleton for UI access. Set by PostAmpAudioSink, cleared on release. */
         @Volatile
@@ -243,6 +247,73 @@ class EqEffectWrapper(private val context: Context) : EffectWrapper<Equalizer>()
         currentPreset = -1
         saveState()
         onStateChanged?.invoke()
+    }
+
+    // ── Profile API ───────────────────────────────────────────────────
+
+    /** Returns the list of saved custom profile names, in order. */
+    fun getProfileNames(): List<String> {
+        val set = prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: return emptyList()
+        return set.sorted()
+    }
+
+    /**
+     * Saves current EQ state (bands, bass boost, virtualizer) as a named profile.
+     * Overwrites if a profile with the same name exists.
+     */
+    fun saveProfile(name: String) {
+        val json = JSONObject().apply {
+            val bandsArray = JSONArray()
+            for (level in bandLevels) bandsArray.put(level.toInt())
+            put("bands", bandsArray)
+            put("bassBoost", bassBoostStrength.toInt())
+            put("virtualizer", virtualizerStrength.toInt())
+        }
+        val names = (prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: emptySet()).toMutableSet()
+        names.add(name)
+        prefs.edit()
+            .putStringSet(PREF_PROFILE_NAMES, names)
+            .putString("$PREF_PROFILE_PREFIX$name", json.toString())
+            .apply()
+        Log.i(TAG, "Saved profile: $name")
+    }
+
+    /**
+     * Loads a named profile, applying all band levels, bass boost, and virtualizer.
+     * Returns true on success, false if profile not found.
+     */
+    fun loadProfile(name: String): Boolean {
+        val jsonStr = prefs.getString("$PREF_PROFILE_PREFIX$name", null) ?: return false
+        return try {
+            val json = JSONObject(jsonStr)
+            val bandsArray = json.getJSONArray("bands")
+            for (i in 0 until minOf(bandsArray.length(), numberOfBands.toInt())) {
+                setBandLevel(i.toShort(), bandsArray.getInt(i).toShort())
+            }
+            val bb = json.optInt("bassBoost", 0).toShort()
+            setBassBoostStrength(bb)
+            val virt = json.optInt("virtualizer", 0).toShort()
+            setVirtualizerStrength(virt)
+            currentPreset = -1
+            saveState()
+            onStateChanged?.invoke()
+            Log.i(TAG, "Loaded profile: $name")
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to load profile: $name", e)
+            false
+        }
+    }
+
+    /** Deletes a saved profile by name. */
+    fun deleteProfile(name: String) {
+        val names = (prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: emptySet()).toMutableSet()
+        names.remove(name)
+        prefs.edit()
+            .putStringSet(PREF_PROFILE_NAMES, names)
+            .remove("$PREF_PROFILE_PREFIX$name")
+            .apply()
+        Log.i(TAG, "Deleted profile: $name")
     }
 
     // ── Persistence ─────────────────────────────────────────────────────

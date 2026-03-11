@@ -1,6 +1,7 @@
 package org.akanework.gramophone.ui.components
 
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -12,8 +13,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.media3.common.util.Log
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
+import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.EqEffectWrapper
@@ -35,6 +38,7 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
     private var suppressPresetChange = false
     private var suppressSliderCallbacks = false
     private val bandSliders = mutableListOf<Slider>()
+    private val bandValueLabels = mutableListOf<TextView>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -79,30 +83,46 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             setControlsEnabled(view, checked)
         }
 
-        // ── Presets ──
-        val presetNames = mutableListOf<String>()
-        presetNames.addAll(eq.presetNames)
-        presetNames.add(getString(R.string.custom))
-        val presetAdapter = ArrayAdapter(
+        // ── Presets + Profiles dropdown ──
+        val dropdownItems = buildDropdownItems(eq)
+        val dropdownAdapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_dropdown_item_1line,
-            presetNames
+            dropdownItems.map { it.label }
         )
-        presetDropdown.setAdapter(presetAdapter)
-        updatePresetDisplay(presetDropdown, eq, presetNames)
-
-        if (eq.presetNames.isEmpty()) {
-            presetLayout.visibility = View.GONE
-        }
+        presetDropdown.setAdapter(dropdownAdapter)
+        updatePresetDisplay(presetDropdown, eq)
 
         presetDropdown.setOnItemClickListener { _, _, position, _ ->
             if (suppressPresetChange) return@setOnItemClickListener
-            if (position < eq.presetNames.size) {
-                eq.usePreset(position.toShort())
-                // Refresh band sliders to match preset values
-                refreshBandSliders(eq)
+            val item = dropdownItems.getOrNull(position) ?: return@setOnItemClickListener
+            when (item.type) {
+                DropdownItemType.HARDWARE_PRESET -> {
+                    eq.usePreset(item.index.toShort())
+                    refreshBandSliders(eq)
+                    bassBoostSlider.value = eq.bassBoostStrength.toFloat()
+                    virtualizerSlider.value = eq.virtualizerStrength.toFloat()
+                }
+                DropdownItemType.SAVED_PROFILE -> {
+                    eq.loadProfile(item.label)
+                    refreshBandSliders(eq)
+                    bassBoostSlider.value = eq.bassBoostStrength.toFloat()
+                    virtualizerSlider.value = eq.virtualizerStrength.toFloat()
+                    suppressPresetChange = true
+                    presetDropdown.setText(item.label, false)
+                    suppressPresetChange = false
+                }
+                DropdownItemType.CUSTOM -> { /* already custom, no-op */ }
+                DropdownItemType.SAVE_ACTION -> {
+                    // Reset dropdown text (don't show "Save Current…")
+                    updatePresetDisplay(presetDropdown, eq)
+                    showSaveProfileDialog(eq, presetDropdown, bassBoostSlider, virtualizerSlider)
+                }
+                DropdownItemType.DELETE_ACTION -> {
+                    updatePresetDisplay(presetDropdown, eq)
+                    showDeleteProfileDialog(eq, presetDropdown, bassBoostSlider, virtualizerSlider)
+                }
             }
-            // Last item = "Custom" — do nothing, already in custom mode
         }
 
         // ── Band sliders (dynamic) ──
@@ -138,7 +158,7 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             refreshBandSliders(eq)
             bassBoostSlider.value = 0f
             virtualizerSlider.value = 0f
-            updatePresetDisplay(presetDropdown, eq, presetNames)
+            updatePresetDisplay(presetDropdown, eq)
         }
 
         // ── Initial enabled state ──
@@ -149,7 +169,7 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             if (isAdded) {
                 requireActivity().runOnUiThread {
                     refreshBandSliders(eq)
-                    updatePresetDisplay(presetDropdown, eq, presetNames)
+                    updatePresetDisplay(presetDropdown, eq)
                 }
             }
         }
@@ -159,6 +179,7 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
         super.onDestroyView()
         wrapper?.onStateChanged = null
         bandSliders.clear()
+        bandValueLabels.clear()
     }
 
     // ── Band slider creation ────────────────────────────────────────────
@@ -195,6 +216,17 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
                     sliderHeight
                 )
             }
+
+            // Current dB value label (tappable for precise input)
+            val currentLevel = eq.bandLevels.getOrElse(i) { 0 }.toFloat()
+            val valueLabel = TextView(requireContext()).apply {
+                text = formatDbPrecise(currentLevel)
+                textAlignment = View.TEXT_ALIGNMENT_CENTER
+                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelMedium)
+                setPadding(0, 4, 0, 4)
+            }
+            bandValueLabels.add(valueLabel)
+
             val slider = Slider(requireContext()).apply {
                 layoutParams = FrameLayout.LayoutParams(
                     sliderHeight,
@@ -205,18 +237,16 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
                 valueFrom = minLevel
                 valueTo = maxLevel
                 stepSize = 100f
-                value = eq.bandLevels.getOrElse(i) { 0 }.toFloat()
+                value = currentLevel
                 val bandIndex = i
                 addOnChangeListener { _, value, fromUser ->
+                    // Always update the value label (whether from user or programmatic)
+                    if (bandIndex in bandValueLabels.indices) {
+                        bandValueLabels[bandIndex].text = formatDbPrecise(value)
+                    }
                     if (fromUser && !suppressSliderCallbacks) {
                         eq.setBandLevel(bandIndex.toShort(), value.toInt().toShort())
-                        // Mark as custom preset in dropdown
-                        view?.let { v ->
-                            val dropdown = v.findViewById<AutoCompleteTextView>(R.id.preset_dropdown)
-                            suppressPresetChange = true
-                            dropdown?.setText(getString(R.string.custom), false)
-                            suppressPresetChange = false
-                        }
+                        markAsCustom()
                     }
                 }
             }
@@ -224,13 +254,11 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             bandSliders.add(slider)
             bandLayout.addView(sliderWrapper)
 
-            // Bottom label: -dB min
-            val bottomLabel = TextView(requireContext()).apply {
-                text = formatDb(minLevel)
-                textAlignment = View.TEXT_ALIGNMENT_CENTER
-                setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelSmall)
+            // Value label between slider and freq label — tap to type exact dB
+            valueLabel.setOnClickListener {
+                showBandInputDialog(eq, i, minLevel, maxLevel)
             }
-            bandLayout.addView(bottomLabel)
+            bandLayout.addView(valueLabel)
 
             // Frequency label
             val freqLabel = TextView(requireContext()).apply {
@@ -250,19 +278,97 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             for (i in bandSliders.indices) {
                 val level = eq.bandLevels.getOrElse(i) { 0 }.toFloat()
                 bandSliders[i].value = level
+                if (i in bandValueLabels.indices) {
+                    bandValueLabels[i].text = formatDbPrecise(level)
+                }
             }
         } finally {
             suppressSliderCallbacks = false
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────
+    // ── Dropdown item model ────────────────────────────────────────────
 
-    private fun updatePresetDisplay(
-        dropdown: AutoCompleteTextView,
+    private enum class DropdownItemType {
+        HARDWARE_PRESET, SAVED_PROFILE, CUSTOM, SAVE_ACTION, DELETE_ACTION
+    }
+
+    private data class DropdownItem(
+        val label: String,
+        val type: DropdownItemType,
+        val index: Int = -1
+    )
+
+    /** Builds the full dropdown list: hardware presets → saved profiles → Custom → Save → Delete */
+    private fun buildDropdownItems(eq: EqEffectWrapper): List<DropdownItem> {
+        val items = mutableListOf<DropdownItem>()
+        // Hardware presets
+        eq.presetNames.forEachIndexed { i, name ->
+            items.add(DropdownItem(name, DropdownItemType.HARDWARE_PRESET, i))
+        }
+        // Saved profiles
+        for (name in eq.getProfileNames()) {
+            items.add(DropdownItem(name, DropdownItemType.SAVED_PROFILE))
+        }
+        // Custom
+        items.add(DropdownItem(getString(R.string.custom), DropdownItemType.CUSTOM))
+        // Actions
+        items.add(DropdownItem(getString(R.string.eq_save_profile), DropdownItemType.SAVE_ACTION))
+        if (eq.getProfileNames().isNotEmpty()) {
+            items.add(DropdownItem(getString(R.string.eq_delete_profile), DropdownItemType.DELETE_ACTION))
+        }
+        return items
+    }
+
+    /** Refreshes the dropdown adapter and sets the displayed text to current state. */
+    private fun rebuildDropdown(
         eq: EqEffectWrapper,
-        presetNames: List<String>
+        dropdown: AutoCompleteTextView,
+        bassBoostSlider: Slider,
+        virtualizerSlider: Slider
     ) {
+        val items = buildDropdownItems(eq)
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_dropdown_item_1line,
+            items.map { it.label }
+        )
+        dropdown.setAdapter(adapter)
+        // Re-wire click handler with new items
+        dropdown.setOnItemClickListener { _, _, position, _ ->
+            if (suppressPresetChange) return@setOnItemClickListener
+            val item = items.getOrNull(position) ?: return@setOnItemClickListener
+            when (item.type) {
+                DropdownItemType.HARDWARE_PRESET -> {
+                    eq.usePreset(item.index.toShort())
+                    refreshBandSliders(eq)
+                    bassBoostSlider.value = eq.bassBoostStrength.toFloat()
+                    virtualizerSlider.value = eq.virtualizerStrength.toFloat()
+                }
+                DropdownItemType.SAVED_PROFILE -> {
+                    eq.loadProfile(item.label)
+                    refreshBandSliders(eq)
+                    bassBoostSlider.value = eq.bassBoostStrength.toFloat()
+                    virtualizerSlider.value = eq.virtualizerStrength.toFloat()
+                    suppressPresetChange = true
+                    dropdown.setText(item.label, false)
+                    suppressPresetChange = false
+                }
+                DropdownItemType.CUSTOM -> { /* no-op */ }
+                DropdownItemType.SAVE_ACTION -> {
+                    updatePresetDisplay(dropdown, eq)
+                    showSaveProfileDialog(eq, dropdown, bassBoostSlider, virtualizerSlider)
+                }
+                DropdownItemType.DELETE_ACTION -> {
+                    updatePresetDisplay(dropdown, eq)
+                    showDeleteProfileDialog(eq, dropdown, bassBoostSlider, virtualizerSlider)
+                }
+            }
+        }
+        updatePresetDisplay(dropdown, eq)
+    }
+
+    private fun updatePresetDisplay(dropdown: AutoCompleteTextView, eq: EqEffectWrapper) {
         suppressPresetChange = true
         val preset = eq.currentPreset.toInt()
         val name = if (preset >= 0 && preset < eq.presetNames.size) {
@@ -272,6 +378,72 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
         }
         dropdown.setText(name, false)
         suppressPresetChange = false
+    }
+
+    // ── Profile dialogs ──────────────────────────────────────────────
+
+    private fun showSaveProfileDialog(
+        eq: EqEffectWrapper,
+        dropdown: AutoCompleteTextView,
+        bassBoostSlider: Slider,
+        virtualizerSlider: Slider
+    ) {
+        val inputLayout = TextInputLayout(requireContext()).apply {
+            hint = getString(R.string.eq_profile_name_hint)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.tab_layout_content_padding),
+                0,
+                resources.getDimensionPixelSize(R.dimen.tab_layout_content_padding),
+                0
+            )
+        }
+        val editText = TextInputEditText(inputLayout.context)
+        inputLayout.addView(editText)
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.eq_save_profile_title))
+            .setView(inputLayout)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val name = editText.text?.toString()?.trim()
+                if (!name.isNullOrEmpty()) {
+                    eq.saveProfile(name)
+                    rebuildDropdown(eq, dropdown, bassBoostSlider, virtualizerSlider)
+                    suppressPresetChange = true
+                    dropdown.setText(name, false)
+                    suppressPresetChange = false
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+
+        editText.requestFocus()
+    }
+
+    private fun showDeleteProfileDialog(
+        eq: EqEffectWrapper,
+        dropdown: AutoCompleteTextView,
+        bassBoostSlider: Slider,
+        virtualizerSlider: Slider
+    ) {
+        val profiles = eq.getProfileNames()
+        if (profiles.isEmpty()) return
+
+        val names = profiles.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.eq_delete_profile_title))
+            .setItems(names) { _, which ->
+                val name = names[which]
+                MaterialAlertDialogBuilder(requireContext())
+                    .setMessage(getString(R.string.eq_delete_profile_confirm, name))
+                    .setPositiveButton(getString(R.string.yes)) { _, _ ->
+                        eq.deleteProfile(name)
+                        rebuildDropdown(eq, dropdown, bassBoostSlider, virtualizerSlider)
+                    }
+                    .setNegativeButton(getString(R.string.no), null)
+                    .show()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun setControlsEnabled(root: View, enabled: Boolean) {
@@ -288,10 +460,88 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
         root.findViewById<Slider>(R.id.virtualizer_slider)?.isEnabled = enabled
     }
 
+    /** Marks the dropdown as "Custom" after manual band adjustment. */
+    private fun markAsCustom() {
+        view?.let { v ->
+            val dropdown = v.findViewById<AutoCompleteTextView>(R.id.preset_dropdown)
+            suppressPresetChange = true
+            dropdown?.setText(getString(R.string.custom), false)
+            suppressPresetChange = false
+        }
+    }
+
+    /** Opens a dialog to type an exact dB value for a band. */
+    private fun showBandInputDialog(
+        eq: EqEffectWrapper,
+        bandIndex: Int,
+        minMillibels: Float,
+        maxMillibels: Float
+    ) {
+        val currentDb = eq.bandLevels.getOrElse(bandIndex) { 0 } / 100f
+        val minDb = minMillibels / 100f
+        val maxDb = maxMillibels / 100f
+        val freqText = formatFreq(eq.bandFrequencies.getOrElse(bandIndex) { 0 })
+
+        val inputLayout = TextInputLayout(requireContext()).apply {
+            hint = getString(R.string.eq_enter_db_hint, minDb, maxDb)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.tab_layout_content_padding),
+                0,
+                resources.getDimensionPixelSize(R.dimen.tab_layout_content_padding),
+                0
+            )
+        }
+        val editText = TextInputEditText(inputLayout.context).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or
+                    InputType.TYPE_NUMBER_FLAG_SIGNED or
+                    InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(if (currentDb == 0f) "0" else "%.1f".format(currentDb).trimEnd('0').trimEnd('.'))
+            selectAll()
+        }
+        inputLayout.addView(editText)
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.eq_set_band_title, freqText))
+            .setView(inputLayout)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val text = editText.text?.toString()?.trim() ?: return@setPositiveButton
+                val db = text.toFloatOrNull() ?: return@setPositiveButton
+                val clamped = db.coerceIn(minDb, maxDb)
+                val millibels = (clamped * 100).toInt()
+                // Round to nearest 100 (stepSize on slider)
+                val rounded = ((millibels + 50) / 100) * 100
+                val finalMillibels = rounded.toFloat().coerceIn(minMillibels, maxMillibels)
+
+                eq.setBandLevel(bandIndex.toShort(), finalMillibels.toInt().toShort())
+                if (bandIndex in bandSliders.indices) {
+                    bandSliders[bandIndex].value = finalMillibels
+                }
+                if (bandIndex in bandValueLabels.indices) {
+                    bandValueLabels[bandIndex].text = formatDbPrecise(finalMillibels)
+                }
+                markAsCustom()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+
+        // Auto-show keyboard
+        editText.requestFocus()
+    }
+
     /** Converts millibel value to dB display string (e.g. 1500 → "+15 dB") */
     private fun formatDb(millibels: Float): String {
         val db = millibels / 100f
         return if (db >= 0) "+${db.toInt()} dB" else "${db.toInt()} dB"
+    }
+
+    /** Precise dB display for value labels (e.g. 600 → "+6 dB", 0 → "0 dB") */
+    private fun formatDbPrecise(millibels: Float): String {
+        val db = millibels / 100f
+        return when {
+            db > 0 -> "+${db.toInt()} dB"
+            db < 0 -> "${db.toInt()} dB"
+            else -> "0 dB"
+        }
     }
 
     /** Converts milliHz to readable frequency (e.g. 60000 → "60 Hz", 14000000 → "14 kHz") */

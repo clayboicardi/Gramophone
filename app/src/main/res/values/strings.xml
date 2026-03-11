@@ -575,4 +575,13 @@
     <string name="custom">Custom</string>
     <string name="reset_to_flat">Reset to Flat</string>
     <string name="eq_not_supported">Equalizer not supported on this device</string>
+    <string name="eq_set_band_title">Set %s</string>
+    <string name="eq_enter_db_hint">dB value (%1$.0f to +%2$.0f)</string>
+    <string name="eq_save_profile">Save Current…</string>
+    <string name="eq_delete_profile">Delete Profile…</string>
+    <string name="eq_save_profile_title">Save EQ Profile</string>
+    <string name="eq_profile_name_hint">Profile name</string>
+    <string name="eq_delete_profile_title">Delete Profile</string>
+    <string name="eq_delete_profile_confirm">Delete \"%s\"?</string>
+    <string name="eq_profile_separator">── Saved Profiles ──</string>
 </resources>
