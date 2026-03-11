@@ -207,6 +207,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.ParametricEqActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.MainActivity" />
+
+        <activity
             android:name=".ui.fragments.settings.MainSettingsActivity"
             android:exported="false" />
 

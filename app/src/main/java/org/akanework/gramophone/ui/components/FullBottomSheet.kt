@@ -8,6 +8,7 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.res.Configuration
@@ -84,6 +85,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
+import org.akanework.gramophone.ui.ParametricEqActivity
 import org.akanework.gramophone.logic.GramophonePlaybackService
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.dpToPx
@@ -641,7 +643,13 @@ class FullBottomSheet
 
         findViewById<MaterialButton>(R.id.equalizer).setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            EqualizerBottomSheet().show(activity.supportFragmentManager, "equalizer")
+            val eqMode = PreferenceManager.getDefaultSharedPreferences(context)
+                .getString("eq_mode", "simple")
+            if (eqMode == "parametric") {
+                context.startActivity(Intent(context, ParametricEqActivity::class.java))
+            } else {
+                EqualizerBottomSheet().show(activity.supportFragmentManager, "equalizer")
+            }
         }
         bottomSheetPlaylistButton.setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)

@@ -1,5 +1,6 @@
 package org.akanework.gramophone.ui.components
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.Gravity
@@ -12,7 +13,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.media3.common.util.Log
+import androidx.preference.PreferenceManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
@@ -20,6 +23,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import org.akanework.gramophone.R
 import org.akanework.gramophone.logic.utils.EqEffectWrapper
+import org.akanework.gramophone.ui.ParametricEqActivity
 
 /**
  * Bottom sheet presenting the built-in equalizer, bass boost, and virtualizer controls.
@@ -159,6 +163,14 @@ class EqualizerBottomSheet : BottomSheetDialogFragment() {
             bassBoostSlider.value = 0f
             virtualizerSlider.value = 0f
             updatePresetDisplay(presetDropdown, eq)
+        }
+
+        // ── Switch to Advanced EQ button ──
+        view.findViewById<MaterialButton>(R.id.switch_to_advanced_button)?.setOnClickListener {
+            PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .edit().putString("eq_mode", "parametric").apply()
+            dismiss()
+            startActivity(Intent(requireContext(), ParametricEqActivity::class.java))
         }
 
         // ── Initial enabled state ──

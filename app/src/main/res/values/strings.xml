@@ -584,4 +584,24 @@
     <string name="eq_delete_profile_title">Delete Profile</string>
     <string name="eq_delete_profile_confirm">Delete \"%s\"?</string>
     <string name="eq_profile_separator">── Saved Profiles ──</string>
+
+    <!-- Advanced (Parametric) Equalizer -->
+    <string name="advanced_equalizer">Advanced Equalizer</string>
+    <string name="eq_switch_to_advanced">Switch to Advanced EQ</string>
+    <string name="eq_switch_to_simple">Switch to Simple EQ</string>
+    <string name="eq_preamp">Preamp</string>
+    <string name="eq_auto_preamp">Auto</string>
+    <string name="eq_selected_band">Selected: %s</string>
+    <string name="eq_gain">Gain</string>
+    <string name="eq_quality">Q</string>
+    <string name="eq_filter_type">Type</string>
+    <string name="eq_reset_band">Reset Band</string>
+    <string name="eq_reset_all">Reset All</string>
+    <string name="eq_mode_key" translatable="false">eq_mode</string>
+    <string name="eq_set_gain_title">Set %s</string>
+    <string name="eq_gain_hint">dB value (-15 to +15)</string>
+    <string name="eq_set_preamp_title">Set Preamp</string>
+    <string name="eq_preamp_hint">dB value (-15 to +15)</string>
+    <string name="eq_set_q_title">Set Q Factor</string>
+    <string name="eq_q_hint">Q value (0.1 to 20)</string>
 </resources>

@@ -150,5 +150,15 @@
             android:layout_gravity="center_horizontal"
             android:text="@string/reset_to_flat" />
 
+        <!-- Switch to Advanced EQ -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/switch_to_advanced_button"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
+            android:text="@string/eq_switch_to_advanced" />
+
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
