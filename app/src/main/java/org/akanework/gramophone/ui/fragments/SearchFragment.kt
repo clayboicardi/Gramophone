@@ -96,7 +96,7 @@ class SearchFragment : BaseFragment(true) {
                     val isMatchingAlbum =
                         it.mediaMetadata.albumTitle?.contains(query, true) == true
                     val isMatchingArtist =
-                        it.mediaMetadata.artist?.contains(query, true) == true
+                        it.mediaMetadata.albumArtist?.contains(query, true) == true
                     isMatchingTitle || isMatchingAlbum || isMatchingArtist
                 }
             }
