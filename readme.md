@@ -1,16 +1,26 @@
-# JAMZ
+# JAMZ!!!
 
-A personal experiment to build a custom music app that is beautiful and does what I want.
+A custom Android music player built for people who care about their music library.
 
 ## What Is This?
 
-JAMZ is a custom Android music player built for a large, meticulously tagged FLAC library. It's a personal project — not published to any app store.
+JAMZ!!! is a personal Android music player built for a large, meticulously tagged FLAC library (~39,500 tracks). It's focused on playback quality, detailed metadata display, and a clean Material You interface.
+
+### Features
+- Material You theming with dynamic colors
+- 31-band parametric equalizer with frequency response curve, built-in presets, and auto-preamp
+- 5-band simple EQ with bass boost and virtualizer
+- Real-time 32-band audio visualizer (FFT-based)
+- Energy-preserving crossfade between EQ presets
+- Lyrics display
+- Sectioned search across songs, albums, and artists
+- Album art with blurred background in Now Playing
 
 ## Building
 
 1. Clone with submodules:
    ```
-   git clone --recursive https://github.com/clayboicardi/Gramophone.git
+   git clone --recursive https://github.com/clayboicardi/JAMZ.git
    ```
 2. Create `package.properties` in the repo root:
    ```
@@ -18,7 +28,7 @@ JAMZ is a custom Android music player built for a large, meticulously tagged FLA
    ```
 3. Open in Android Studio and build, or run:
    ```
-   ./gradlew assembleDebug
+   ./gradlew :app:assembleDebug
    ```
 
 ## Attribution
