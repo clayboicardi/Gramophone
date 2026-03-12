@@ -125,3 +125,82 @@ data class EqConfig(
         }
     }
 }
+
+/**
+ * Manages saved parametric EQ profiles, separate from the simple EQ profiles
+ * due to different data shapes (31 bands with freq/gain/Q/type vs 5 band levels).
+ */
+object ParametricEqProfileManager {
+    private const val PREF_PROFILE_NAMES = "parametric_eq_profile_names"
+    private const val PREF_PROFILE_PREFIX = "parametric_eq_profile_"
+
+    fun getProfileNames(prefs: SharedPreferences): List<String> {
+        return (prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: emptySet()).sorted()
+    }
+
+    fun saveProfile(prefs: SharedPreferences, name: String, config: EqConfig) {
+        val names = (prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: emptySet()).toMutableSet()
+        names.add(name)
+        prefs.edit()
+            .putStringSet(PREF_PROFILE_NAMES, names)
+            .putString("$PREF_PROFILE_PREFIX$name", config.toJson().toString())
+            .apply()
+    }
+
+    fun loadProfile(prefs: SharedPreferences, name: String): EqConfig? {
+        val json = prefs.getString("$PREF_PROFILE_PREFIX$name", null) ?: return null
+        return try {
+            EqConfig.fromJson(json)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun deleteProfile(prefs: SharedPreferences, name: String) {
+        val names = (prefs.getStringSet(PREF_PROFILE_NAMES, null) ?: emptySet()).toMutableSet()
+        names.remove(name)
+        prefs.edit()
+            .putStringSet(PREF_PROFILE_NAMES, names)
+            .remove("$PREF_PROFILE_PREFIX$name")
+            .apply()
+    }
+
+    /** Built-in preset configs (not user-deletable) */
+    val BUILT_IN_PRESETS: Map<String, EqConfig> by lazy {
+        val freqs = EqConfig.ISO_31_FREQUENCIES
+        linkedMapOf(
+            "Bass Boost" to createPreset(freqs, mapOf(
+                50f to 5f, 63f to 6f, 80f to 6f, 100f to 5f, 125f to 3f, 160f to 1f
+            )),
+            "Treble Boost" to createPreset(freqs, mapOf(
+                8000f to 3f, 10000f to 4f, 12500f to 4f, 16000f to 3f, 20000f to 2f
+            )),
+            "V-Shape" to createPreset(freqs, mapOf(
+                20f to 4f, 25f to 4f, 31.5f to 5f, 40f to 5f, 50f to 5f,
+                63f to 4f, 80f to 3f, 100f to 2f,
+                500f to -2f, 630f to -3f, 800f to -3f, 1000f to -3f,
+                1250f to -2f, 1600f to -1f,
+                8000f to 2f, 10000f to 3f, 12500f to 4f, 16000f to 5f, 20000f to 5f
+            )),
+            "Vocal Clarity" to createPreset(freqs, mapOf(
+                2000f to 2f, 2500f to 3f, 3150f to 4f, 4000f to 3f, 5000f to 2f
+            ))
+        )
+    }
+
+    private fun createPreset(freqs: FloatArray, gains: Map<Float, Float>): EqConfig {
+        return EqConfig(
+            enabled = false,
+            preampDb = 0f,
+            bands = freqs.map { freq ->
+                BandConfig(
+                    enabled = true,
+                    filterType = FilterType.PEAKING,
+                    frequencyHz = freq,
+                    gainDb = gains[freq] ?: 0f,
+                    q = BandConfig.DEFAULT_Q
+                )
+            }
+        )
+    }
+}

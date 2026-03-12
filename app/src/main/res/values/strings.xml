@@ -603,5 +603,11 @@
     <string name="eq_set_preamp_title">Set Preamp</string>
     <string name="eq_preamp_hint">dB value (-15 to +15)</string>
     <string name="eq_set_q_title">Set Q Factor</string>
-    <string name="eq_q_hint">Q value (0.1 to 20)</string>
+    <string name="eq_q_hint">Q factor (0.1=wide, 4.3=1/3 oct, 10+=narrow)</string>
+    <string name="eq_clipping_warning">Clipping risk: preamp + max gain exceeds 0 dB</string>
+    <string name="eq_flat">Flat</string>
+    <string name="eq_bass_boost">Bass Boost</string>
+    <string name="eq_treble_boost">Treble Boost</string>
+    <string name="eq_v_shape">V-Shape</string>
+    <string name="eq_vocal_clarity">Vocal Clarity</string>
 </resources>

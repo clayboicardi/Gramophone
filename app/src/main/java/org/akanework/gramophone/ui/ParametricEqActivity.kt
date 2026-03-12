@@ -26,12 +26,8 @@ import org.akanework.gramophone.logic.utils.EqConfig
 import org.akanework.gramophone.logic.utils.EqEffectWrapper
 import org.akanework.gramophone.logic.utils.FilterType
 import org.akanework.gramophone.logic.utils.ParametricEqProcessor
+import org.akanework.gramophone.logic.utils.ParametricEqProfileManager
 import org.akanework.gramophone.ui.components.FrequencyResponseView
-import org.json.JSONArray
-import org.json.JSONObject
-import kotlin.math.abs
-import kotlin.math.log10
-import kotlin.math.pow
 
 /**
  * Full-screen Activity for the 31-band parametric equalizer.
@@ -39,10 +35,6 @@ import kotlin.math.pow
  * Mutually exclusive with the hardware EQ (Simple mode).
  */
 class ParametricEqActivity : AppCompatActivity() {
-
-    companion object {
-        private const val PREFS_PROFILES_KEY = "parametric_eq_profiles"
-    }
 
     private var processor: ParametricEqProcessor? = null
     private var currentConfig: EqConfig = EqConfig.createDefault31Band()
@@ -61,6 +53,7 @@ class ParametricEqActivity : AppCompatActivity() {
     private lateinit var preampValue: TextView
     private lateinit var enableSwitch: MaterialSwitch
     private lateinit var presetDropdown: AutoCompleteTextView
+    private lateinit var clippingWarning: TextView
 
     private var suppressPresetChange = false
 
@@ -93,6 +86,7 @@ class ParametricEqActivity : AppCompatActivity() {
         }
 
         updateFrequencyResponse()
+        updateClippingWarning()
     }
 
     private fun initViews() {
@@ -107,6 +101,7 @@ class ParametricEqActivity : AppCompatActivity() {
         preampValue = findViewById(R.id.preamp_value)
         enableSwitch = findViewById(R.id.eq_enable_switch)
         presetDropdown = findViewById(R.id.preset_dropdown)
+        clippingWarning = findViewById(R.id.clipping_warning)
     }
 
     private fun setupToolbar() {
@@ -130,10 +125,15 @@ class ParametricEqActivity : AppCompatActivity() {
 
     private fun rebuildPresetDropdown() {
         val items = mutableListOf<String>()
-        items.add("Flat")
+        items.add(getString(R.string.eq_flat))
+        // Built-in presets
+        val builtInNames = ParametricEqProfileManager.BUILT_IN_PRESETS.keys.toList()
+        items.addAll(builtInNames)
         // Saved profiles
-        val profileNames = getProfileNames()
-        items.addAll(profileNames)
+        val profileNames = ParametricEqProfileManager.getProfileNames(prefs)
+        if (profileNames.isNotEmpty()) {
+            items.addAll(profileNames)
+        }
         items.add(getString(R.string.eq_save_profile))
         if (profileNames.isNotEmpty()) {
             items.add(getString(R.string.eq_delete_profile))
@@ -144,83 +144,49 @@ class ParametricEqActivity : AppCompatActivity() {
 
         presetDropdown.setOnItemClickListener { _, _, position, _ ->
             if (suppressPresetChange) return@setOnItemClickListener
+            val selected = items[position]
             when {
                 position == 0 -> {
                     // Flat
                     currentConfig = EqConfig.createDefault31Band().copy(enabled = currentConfig.enabled)
                     applyConfig()
-                    refreshBandGrid()
-                    updateSelectedBandDetail()
-                    updatePreampDisplay()
+                    refreshAll()
                 }
-                position <= profileNames.size -> {
-                    // Load profile
-                    val name = profileNames[position - 1]
-                    loadProfile(name)
+                selected in ParametricEqProfileManager.BUILT_IN_PRESETS -> {
+                    // Built-in preset
+                    val preset = ParametricEqProfileManager.BUILT_IN_PRESETS[selected] ?: return@setOnItemClickListener
+                    currentConfig = preset.copy(enabled = currentConfig.enabled)
+                    applyConfig()
+                    refreshAll()
                 }
-                items[position] == getString(R.string.eq_save_profile) -> {
+                selected == getString(R.string.eq_save_profile) -> {
                     suppressPresetChange = true
                     presetDropdown.setText("", false)
                     suppressPresetChange = false
                     showSaveProfileDialog()
                 }
-                items[position] == getString(R.string.eq_delete_profile) -> {
+                selected == getString(R.string.eq_delete_profile) -> {
                     suppressPresetChange = true
                     presetDropdown.setText("", false)
                     suppressPresetChange = false
                     showDeleteProfileDialog()
                 }
+                else -> {
+                    // User-saved profile
+                    loadProfile(selected)
+                }
             }
         }
     }
 
-    private fun getProfileNames(): List<String> {
-        val json = prefs.getString(PREFS_PROFILES_KEY, null) ?: return emptyList()
-        return try {
-            val obj = JSONObject(json)
-            obj.keys().asSequence().toList().sorted()
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun saveProfile(name: String) {
-        val existing = prefs.getString(PREFS_PROFILES_KEY, null)
-        val obj = if (existing != null) {
-            try { JSONObject(existing) } catch (_: Exception) { JSONObject() }
-        } else JSONObject()
-        obj.put(name, currentConfig.toJson().toString())
-        prefs.edit().putString(PREFS_PROFILES_KEY, obj.toString()).apply()
-        rebuildPresetDropdown()
+    private fun loadProfile(name: String) {
+        val config = ParametricEqProfileManager.loadProfile(prefs, name) ?: return
+        currentConfig = config.copy(enabled = currentConfig.enabled)
+        applyConfig()
+        refreshAll()
         suppressPresetChange = true
         presetDropdown.setText(name, false)
         suppressPresetChange = false
-    }
-
-    private fun loadProfile(name: String) {
-        val json = prefs.getString(PREFS_PROFILES_KEY, null) ?: return
-        try {
-            val obj = JSONObject(json)
-            val configStr = obj.getString(name)
-            currentConfig = EqConfig.fromJson(configStr).copy(enabled = currentConfig.enabled)
-            applyConfig()
-            refreshBandGrid()
-            updateSelectedBandDetail()
-            updatePreampDisplay()
-            suppressPresetChange = true
-            presetDropdown.setText(name, false)
-            suppressPresetChange = false
-        } catch (_: Exception) { }
-    }
-
-    private fun deleteProfile(name: String) {
-        val json = prefs.getString(PREFS_PROFILES_KEY, null) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(name)
-            prefs.edit().putString(PREFS_PROFILES_KEY, obj.toString()).apply()
-            rebuildPresetDropdown()
-        } catch (_: Exception) { }
     }
 
     private fun showSaveProfileDialog() {
@@ -242,7 +208,11 @@ class ParametricEqActivity : AppCompatActivity() {
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val name = editText.text?.toString()?.trim()
                 if (!name.isNullOrEmpty()) {
-                    saveProfile(name)
+                    ParametricEqProfileManager.saveProfile(prefs, name, currentConfig)
+                    rebuildPresetDropdown()
+                    suppressPresetChange = true
+                    presetDropdown.setText(name, false)
+                    suppressPresetChange = false
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -252,7 +222,7 @@ class ParametricEqActivity : AppCompatActivity() {
     }
 
     private fun showDeleteProfileDialog() {
-        val profiles = getProfileNames()
+        val profiles = ParametricEqProfileManager.getProfileNames(prefs)
         if (profiles.isEmpty()) return
 
         val names = profiles.toTypedArray()
@@ -263,7 +233,8 @@ class ParametricEqActivity : AppCompatActivity() {
                 MaterialAlertDialogBuilder(this)
                     .setMessage(getString(R.string.eq_delete_profile_confirm, name))
                     .setPositiveButton(getString(R.string.yes)) { _, _ ->
-                        deleteProfile(name)
+                        ParametricEqProfileManager.deleteProfile(prefs, name)
+                        rebuildPresetDropdown()
                     }
                     .setNegativeButton(getString(R.string.no), null)
                     .show()
@@ -321,6 +292,7 @@ class ParametricEqActivity : AppCompatActivity() {
                 currentConfig = currentConfig.copy(preampDb = clamped)
                 applyConfig()
                 updatePreampDisplay()
+                updateClippingWarning()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -333,16 +305,24 @@ class ParametricEqActivity : AppCompatActivity() {
      * and set preamp to the negative of that to prevent clipping.
      */
     private fun autoPreamp() {
-        var maxGain = 0f
-        for (band in currentConfig.bands) {
-            if (band.enabled && band.gainDb > maxGain) {
-                maxGain = band.gainDb
-            }
-        }
-        val autoPreamp = -maxGain
+        val maxGain = currentConfig.bands
+            .filter { it.enabled }
+            .maxOfOrNull { it.gainDb } ?: 0f
+        val autoPreamp = if (maxGain > 0f) -maxGain else 0f
         currentConfig = currentConfig.copy(preampDb = autoPreamp)
         applyConfig()
         updatePreampDisplay()
+        updateClippingWarning()
+    }
+
+    // ── Clipping Warning ────────────────────────────────────────────────
+
+    private fun updateClippingWarning() {
+        val maxGain = currentConfig.bands
+            .filter { it.enabled }
+            .maxOfOrNull { it.gainDb } ?: 0f
+        val totalPeak = currentConfig.preampDb + maxGain
+        clippingWarning.visibility = if (totalPeak > 0f) View.VISIBLE else View.GONE
     }
 
     // ── Band Grid ───────────────────────────────────────────────────────
@@ -370,15 +350,28 @@ class ParametricEqActivity : AppCompatActivity() {
                 setPadding(4, 8, 4, 8)
             }
 
-            // Frequency label
+            // Frequency label (tappable to select without editing)
             val freqLabel = TextView(this).apply {
                 text = formatFreq(band.frequencyHz)
                 textAlignment = View.TEXT_ALIGNMENT_CENTER
                 setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelSmall)
+                background = getDrawable(android.R.drawable.list_selector_background)
+                isClickable = true
+                isFocusable = true
+
+                if (i == selectedBandIndex) {
+                    setTypeface(null, Typeface.BOLD)
+                    setTextColor(accentColor)
+                }
+
+                val bandIndex = i
+                setOnClickListener {
+                    selectBand(bandIndex)
+                }
             }
             bandColumn.addView(freqLabel)
 
-            // Gain value (tappable)
+            // Gain value (tappable to edit)
             val gainLabel = TextView(this).apply {
                 text = formatGain(band.gainDb)
                 textAlignment = View.TEXT_ALIGNMENT_CENTER
@@ -400,16 +393,25 @@ class ParametricEqActivity : AppCompatActivity() {
 
                 val bandIndex = i
                 setOnClickListener {
-                    selectedBandIndex = bandIndex
+                    selectBand(bandIndex)
                     showGainInputDialog(bandIndex)
-                    updateSelectedBandDetail()
-                    refreshBandGrid()
                 }
             }
             bandColumn.addView(gainLabel)
 
             bandsContainer.addView(bandColumn)
         }
+    }
+
+    /**
+     * Select a band: update index, refresh grid highlighting, update detail panel,
+     * and sync the frequency response view's selected band dot.
+     */
+    private fun selectBand(index: Int) {
+        selectedBandIndex = index
+        refreshBandGrid()
+        updateSelectedBandDetail()
+        frequencyResponseView.setSelectedBand(index)
     }
 
     private fun showGainInputDialog(bandIndex: Int) {
@@ -442,6 +444,7 @@ class ParametricEqActivity : AppCompatActivity() {
                 val db = text.toFloatOrNull() ?: return@setPositiveButton
                 val clamped = db.coerceIn(-15f, 15f)
                 updateBandConfig(bandIndex, band.copy(gainDb = clamped))
+                updateClippingWarning()
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
@@ -531,7 +534,7 @@ class ParametricEqActivity : AppCompatActivity() {
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val text = editText.text?.toString()?.trim() ?: return@setPositiveButton
                 val q = text.toFloatOrNull() ?: return@setPositiveButton
-                val clamped = q.coerceIn(0.1f, 20f)
+                val clamped = q.coerceIn(0.1f, 30f)
                 updateBandConfig(bandIndex, band.copy(q = clamped))
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -555,6 +558,7 @@ class ParametricEqActivity : AppCompatActivity() {
                         enabled = true
                     )
                 )
+                updateClippingWarning()
             }
         }
 
@@ -562,9 +566,7 @@ class ParametricEqActivity : AppCompatActivity() {
             currentConfig = EqConfig.createDefault31Band().copy(enabled = currentConfig.enabled)
             selectedBandIndex = -1
             applyConfig()
-            refreshBandGrid()
-            updateSelectedBandDetail()
-            updatePreampDisplay()
+            refreshAll()
         }
     }
 
@@ -592,6 +594,7 @@ class ParametricEqActivity : AppCompatActivity() {
         applyConfig()
         refreshBandGrid()
         updateSelectedBandDetail()
+        updateClippingWarning()
     }
 
     private fun applyConfig() {
@@ -602,6 +605,15 @@ class ParametricEqActivity : AppCompatActivity() {
 
     private fun updateFrequencyResponse() {
         frequencyResponseView.updateConfig(currentConfig)
+        frequencyResponseView.setSelectedBand(selectedBandIndex)
+    }
+
+    /** Refresh all UI elements after a config change */
+    private fun refreshAll() {
+        refreshBandGrid()
+        updateSelectedBandDetail()
+        updatePreampDisplay()
+        updateClippingWarning()
     }
 
     // ── Formatting Helpers ──────────────────────────────────────────────
