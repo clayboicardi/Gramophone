@@ -30,3 +30,15 @@ Edit Logs/
 *-handoff.md
 *-implementation-plan.md
 *-context-transfer.md
+
+# Claude Code local config
+.claude/
+.mcp.json
+
+# Session-specific files
+JAMZ-streaming-session1-prompt.md
+claude-code-handoff-mcp-setup.md
+claude-code-mcp-setup.md
+
+# Old/backup keystores
+*.jks.old

@@ -45,6 +45,17 @@
 }
 -keep class org.akanework.gramophone.ui.components.EqualizerBottomSheet { *; }
 
+# Parametric EQ — singleton processor + config classes used in JSON serialization
+-keep class org.akanework.gramophone.logic.utils.ParametricEqProcessor {
+    <fields>;
+    <methods>;
+}
+-keep class org.akanework.gramophone.logic.utils.BiquadFilter { *; }
+-keep class org.akanework.gramophone.logic.utils.FilterType { *; }
+-keep class org.akanework.gramophone.logic.utils.BandConfig { *; }
+-keep class org.akanework.gramophone.logic.utils.EqConfig { *; }
+-keep class org.akanework.gramophone.logic.utils.ParametricEqProfileManager { *; }
+
 # JNI
 -keep class org.nift4.gramophone.hificore.NativeTrack {
     onAudioDeviceUpdate(...);

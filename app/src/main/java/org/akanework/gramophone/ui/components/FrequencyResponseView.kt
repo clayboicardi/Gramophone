@@ -248,15 +248,15 @@ class FrequencyResponseView @JvmOverloads constructor(
     private fun drawBandDots(canvas: Canvas, w: Float, h: Float) {
         if (bandFreqs.isEmpty()) return
 
+        val preampLinear = 10.0.pow(preampDb.toDouble() / 20.0)
+
         for (i in bandFreqs.indices) {
             if (!bandEnabled.getOrElse(i) { true }) continue
 
             val freq = bandFreqs[i].toDouble()
-            val gain = bandGains.getOrElse(i) { 0f }.toDouble()
 
             // Compute the actual combined magnitude at this band's frequency
             // (including preamp and all other bands' contributions)
-            val preampLinear = 10.0.pow(preampDb.toDouble() / 20.0)
             var magnitude = preampLinear
             for (j in filters.indices) {
                 if (bandEnabled.getOrElse(j) { true }) {

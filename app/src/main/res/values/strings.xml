@@ -612,4 +612,5 @@
     <string name="eq_vocal_clarity">Vocal Clarity</string>
     <string name="eq_loudness">Loudness</string>
     <string name="eq_reduce_sibilance">Reduce Sibilance</string>
+    <string name="eq_band_enabled">Enabled</string>
 </resources>

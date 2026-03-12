@@ -44,6 +44,10 @@ class VisualizerProcessor : TeeAudioProcessor.AudioBufferSink {
         var instance: VisualizerProcessor? = null
             private set
 
+        fun setInstance(p: VisualizerProcessor?) {
+            instance = p
+        }
+
         const val BAND_COUNT = 32
         private const val FFT_SIZE = 512
     }

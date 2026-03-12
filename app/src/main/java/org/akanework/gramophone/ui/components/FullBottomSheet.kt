@@ -87,6 +87,7 @@ import kotlinx.coroutines.withContext
 import org.akanework.gramophone.R
 import org.akanework.gramophone.ui.ParametricEqActivity
 import org.akanework.gramophone.logic.GramophonePlaybackService
+import org.akanework.gramophone.logic.allowDiskAccessInStrictMode
 import org.akanework.gramophone.logic.clone
 import org.akanework.gramophone.logic.dpToPx
 import org.akanework.gramophone.logic.fadInAnimation
@@ -643,8 +644,10 @@ class FullBottomSheet
 
         findViewById<MaterialButton>(R.id.equalizer).setOnClickListener {
             ViewCompat.performHapticFeedback(it, HapticFeedbackConstantsCompat.CONTEXT_CLICK)
-            val eqMode = PreferenceManager.getDefaultSharedPreferences(context)
-                .getString("eq_mode", "simple")
+            val eqMode = allowDiskAccessInStrictMode {
+                PreferenceManager.getDefaultSharedPreferences(context)
+                    .getString("eq_mode", "simple")
+            }
             if (eqMode == "parametric") {
                 context.startActivity(Intent(context, ParametricEqActivity::class.java))
             } else {

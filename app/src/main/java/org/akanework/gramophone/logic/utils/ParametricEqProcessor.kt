@@ -122,7 +122,7 @@ class ParametricEqProcessor : BaseAudioProcessor() {
                             // Old chain
                             var oldSample = inputSample * oldPreampLinear
                             for (i in oldFilters.indices) {
-                                if (oldBandConfigs.getOrElse(i) { BandConfig(true, FilterType.PEAKING, 1000f, 0f, 4.318f) }.enabled) {
+                                if (i < oldBandConfigs.size && oldBandConfigs[i].enabled) {
                                     oldSample = oldFilters[i].processSample(ch, oldSample)
                                 }
                             }

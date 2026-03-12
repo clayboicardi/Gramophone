@@ -22,6 +22,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import org.akanework.gramophone.R
+import org.akanework.gramophone.logic.allowDiskAccessInStrictMode
 import org.akanework.gramophone.logic.utils.BandConfig
 import org.akanework.gramophone.logic.utils.EqConfig
 import org.akanework.gramophone.logic.utils.EqEffectWrapper
@@ -64,44 +65,55 @@ class ParametricEqActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_parametric_eq)
+        // Wrap entire onCreate body — setContentView, SharedPreferences, and Material theme
+        // resolution all do disk I/O that triggers StrictMode dialogs in debug, which block
+        // the main thread long enough to cascade into an ANR.
+        allowDiskAccessInStrictMode {
+            setContentView(R.layout.activity_parametric_eq)
 
-        prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        processor = ParametricEqProcessor.instance
+            prefs = PreferenceManager.getDefaultSharedPreferences(this)
+            // Load saved config (reads JSON from SharedPreferences)
+            currentConfig = EqConfig.loadFromPrefs(prefs)
+            processor = ParametricEqProcessor.instance
 
-        // Load saved config
-        currentConfig = EqConfig.loadFromPrefs(prefs)
-
-        initViews()
-        // Cache colors for gain color coding
-        accentColor = MaterialColors.getColor(
-            this, androidx.appcompat.R.attr.colorPrimary, 0xFF6200EE.toInt()
-        )
-        cutColor = MaterialColors.getColor(
-            this, android.R.attr.colorError, 0xFFB00020.toInt()
-        )
-        defaultTextColor = MaterialColors.getColor(
-            this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000.toInt()
-        )
-        setupToolbar()
-        setupEnableSwitch()
-        setupPresetDropdown()
-        setupPreamp()
-        setupBandGrid()
-        setupBandDetail()
-        setupActionButtons()
-        setupModeToggle()
-
-        // Disable hardware EQ when entering Advanced mode
-        EqEffectWrapper.instance?.setEnabled(false)
-
-        // Enable parametric if config says so
-        if (currentConfig.enabled) {
-            processor?.updateConfig(currentConfig)
+            initViews()
+            // Cache colors for gain color coding
+            accentColor = MaterialColors.getColor(
+                this, androidx.appcompat.R.attr.colorPrimary, 0xFF6200EE.toInt()
+            )
+            cutColor = MaterialColors.getColor(
+                this, android.R.attr.colorError, 0xFFB00020.toInt()
+            )
+            defaultTextColor = MaterialColors.getColor(
+                this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000.toInt()
+            )
+            setupToolbar()
+            setupEnableSwitch()
+            setupPresetDropdown()
+            setupPreamp()
+            setupBandDetail()
+            setupActionButtons()
+            setupModeToggle()
         }
 
-        updateFrequencyResponse()
-        updateClippingWarning()
+        // Defer heavy UI work to avoid ANR during activity transition.
+        // setupBandGrid() creates 31 programmatic view columns (~93 views + 62 drawables);
+        // updateFrequencyResponse() creates 31 BiquadFilter instances with coefficient math.
+        // Together these block the main thread for 5+ seconds, causing ANR.
+        window.decorView.post {
+            setupBandGrid()
+
+            // Disable hardware EQ when entering Advanced mode
+            EqEffectWrapper.instance?.setEnabled(false)
+
+            // Enable parametric if config says so
+            if (currentConfig.enabled) {
+                processor?.updateConfig(currentConfig)
+            }
+
+            updateFrequencyResponse()
+            updateClippingWarning()
+        }
     }
 
     private fun initViews() {
@@ -123,7 +135,7 @@ class ParametricEqActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         // Persist config on any activity pause to handle unexpected kills
-        currentConfig.saveToPrefs(prefs)
+        allowDiskAccessInStrictMode { currentConfig.saveToPrefs(prefs) }
     }
 
     private fun setupToolbar() {
@@ -229,7 +241,7 @@ class ParametricEqActivity : AppCompatActivity() {
             .setView(inputLayout)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val name = editText.text?.toString()?.trim()
-                if (!name.isNullOrEmpty()) {
+                if (!name.isNullOrEmpty() && name !in ParametricEqProfileManager.BUILT_IN_PRESETS) {
                     ParametricEqProfileManager.saveProfile(prefs, name, currentConfig)
                     rebuildPresetDropdown()
                     suppressPresetChange = true
@@ -627,13 +639,15 @@ class ParametricEqActivity : AppCompatActivity() {
 
     private fun setupModeToggle() {
         findViewById<MaterialButton>(R.id.switch_to_simple_button).setOnClickListener {
-            // Save preference
-            prefs.edit().putString("eq_mode", "simple").apply()
-            // Disable parametric
-            processor?.updateConfig(currentConfig.copy(enabled = false))
-            // Re-enable hardware EQ if it was previously enabled
-            val wasEnabled = prefs.getBoolean("eq_enabled", false)
-            if (wasEnabled) EqEffectWrapper.instance?.setEnabled(true)
+            allowDiskAccessInStrictMode {
+                // Save preference
+                prefs.edit().putString("eq_mode", "simple").apply()
+                // Disable parametric
+                processor?.updateConfig(currentConfig.copy(enabled = false))
+                // Re-enable hardware EQ if it was previously enabled
+                val wasEnabled = prefs.getBoolean("eq_enabled", false)
+                if (wasEnabled) EqEffectWrapper.instance?.setEnabled(true)
+            }
             finish()
         }
     }
@@ -652,7 +666,7 @@ class ParametricEqActivity : AppCompatActivity() {
 
     private fun applyConfig() {
         processor?.updateConfig(currentConfig)
-        currentConfig.saveToPrefs(prefs)
+        allowDiskAccessInStrictMode { currentConfig.saveToPrefs(prefs) }
         updateFrequencyResponse()
     }
 
