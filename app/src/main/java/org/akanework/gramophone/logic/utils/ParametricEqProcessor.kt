@@ -7,7 +7,9 @@ import androidx.media3.common.util.Log
 import androidx.media3.exoplayer.audio.ToFloatPcmAudioProcessor
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 
 /**
  * Media3 BaseAudioProcessor that chains 31 biquad filters for parametric EQ.
@@ -44,6 +46,15 @@ class ParametricEqProcessor : BaseAudioProcessor() {
     private var preampLinear = 1f
     private var currentSampleRate = 0
     private var currentChannelCount = 0
+    private var currentConfig: EqConfig? = null
+
+    // Crossfade state for smooth preset transitions
+    private var oldFilters: Array<BiquadFilter> = emptyArray()
+    private var oldBandConfigs: List<BandConfig> = emptyList()
+    private var oldPreampLinear = 1f
+    private var crossfadeFramesRemaining = 0
+    private var crossfadeTotalFrames = 0
+    private var isCrossfading = false
 
     // Pending fields committed in onFlush (same pattern as ReplayGainAudioProcessor)
     private var pendingActive = false
@@ -59,7 +70,22 @@ class ParametricEqProcessor : BaseAudioProcessor() {
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         // Always output float — keeps format consistent regardless of EQ enabled state
         pendingActive = true
+        val newSampleRate = inputAudioFormat.sampleRate
+        val newChannelCount = inputAudioFormat.channelCount
+        val sampleRateChanged = newSampleRate != currentSampleRate
+        val channelCountChanged = newChannelCount != currentChannelCount
+
         toFloatPcmAudioProcessor.configure(inputAudioFormat)
+
+        // Recalculate coefficients if sample rate or channel count changed
+        if ((sampleRateChanged || channelCountChanged) && currentConfig != null) {
+            currentSampleRate = newSampleRate
+            currentChannelCount = newChannelCount
+            // Force rebuild filters for new format
+            filters = emptyArray()
+            applyConfig(currentConfig!!)
+        }
+
         return AudioProcessor.AudioFormat(
             inputAudioFormat.sampleRate,
             inputAudioFormat.channelCount,
@@ -87,17 +113,69 @@ class ParametricEqProcessor : BaseAudioProcessor() {
             val channelCount = outputAudioFormat.channelCount
 
             if (eqEnabled && filters.isNotEmpty()) {
-                // Process through biquad cascade
-                for (frame in 0 until frameCount) {
-                    for (ch in 0 until channelCount) {
-                        var sample = floatInput.getFloat()
-                        sample *= preampLinear
+                if (isCrossfading && crossfadeFramesRemaining > 0) {
+                    // Crossfade: process through both old and new filter chains
+                    for (frame in 0 until frameCount) {
+                        for (ch in 0 until channelCount) {
+                            val inputSample = floatInput.getFloat()
+
+                            // Old chain
+                            var oldSample = inputSample * oldPreampLinear
+                            for (i in oldFilters.indices) {
+                                if (oldBandConfigs.getOrElse(i) { BandConfig(true, FilterType.PEAKING, 1000f, 0f, 4.318f) }.enabled) {
+                                    oldSample = oldFilters[i].processSample(ch, oldSample)
+                                }
+                            }
+
+                            // New chain
+                            var newSample = inputSample * preampLinear
+                            for (i in filters.indices) {
+                                if (bandConfigs[i].enabled) {
+                                    newSample = filters[i].processSample(ch, newSample)
+                                }
+                            }
+
+                            // Cos/sin crossfade for energy preservation
+                            val t = 1.0f - (crossfadeFramesRemaining.toFloat() / crossfadeTotalFrames)
+                            val fadeIn = sin(t * Math.PI.toFloat() / 2f)
+                            val fadeOut = cos(t * Math.PI.toFloat() / 2f)
+                            outputBuffer.putFloat(oldSample * fadeOut + newSample * fadeIn)
+
+                            if (ch == channelCount - 1) crossfadeFramesRemaining--
+                        }
+                        if (crossfadeFramesRemaining <= 0) {
+                            isCrossfading = false
+                            for (f in oldFilters) f.clearState()
+                            // Process remaining frames normally
+                            break
+                        }
+                    }
+                    // If crossfade ended mid-buffer, process remaining frames normally
+                    while (floatInput.hasRemaining() && outputBuffer.hasRemaining()) {
+                        val inputSample = floatInput.getFloat()
+                        var sample = inputSample * preampLinear
                         for (i in filters.indices) {
                             if (bandConfigs[i].enabled) {
-                                sample = filters[i].processSample(ch, sample)
+                                sample = filters[i].processSample(
+                                    (outputBuffer.position() / 4) % channelCount, sample
+                                )
                             }
                         }
                         outputBuffer.putFloat(sample)
+                    }
+                } else {
+                    // Normal processing through biquad cascade
+                    for (frame in 0 until frameCount) {
+                        for (ch in 0 until channelCount) {
+                            var sample = floatInput.getFloat()
+                            sample *= preampLinear
+                            for (i in filters.indices) {
+                                if (bandConfigs[i].enabled) {
+                                    sample = filters[i].processSample(ch, sample)
+                                }
+                            }
+                            outputBuffer.putFloat(sample)
+                        }
                     }
                 }
             } else {
@@ -124,11 +202,17 @@ class ParametricEqProcessor : BaseAudioProcessor() {
     override fun onReset() {
         toFloatPcmAudioProcessor.reset()
         filters = emptyArray()
+        oldFilters = emptyArray()
         bandConfigs = emptyList()
+        oldBandConfigs = emptyList()
         eqEnabled = false
         preampLinear = 1f
+        oldPreampLinear = 1f
         currentSampleRate = 0
         currentChannelCount = 0
+        currentConfig = null
+        isCrossfading = false
+        crossfadeFramesRemaining = 0
     }
 
     /**
@@ -143,23 +227,49 @@ class ParametricEqProcessor : BaseAudioProcessor() {
 
     /**
      * Apply a new EQ configuration. Only called on the audio thread.
+     * Uses crossfade when many bands change at once (preset switch) to prevent clicks.
      */
     private fun applyConfig(config: EqConfig) {
+        val oldConfig = currentConfig
+        currentConfig = config
         eqEnabled = config.enabled
-        preampLinear = 10f.pow(config.preampDb / 20f)
-        bandConfigs = config.bands
 
         val sampleRate = if (outputAudioFormat != AudioProcessor.AudioFormat.NOT_SET)
             outputAudioFormat.sampleRate else 44100
         val channelCount = if (outputAudioFormat != AudioProcessor.AudioFormat.NOT_SET)
             outputAudioFormat.channelCount else 2
+        val maxCh = channelCount.coerceAtLeast(8)
+
+        // Count how many bands changed (to decide if crossfade is needed)
+        val changedBandCount = if (oldConfig != null) {
+            config.bands.indices.count { i ->
+                i < oldConfig.bands.size && config.bands[i].gainDb != oldConfig.bands[i].gainDb
+            }
+        } else 0
+
+        val needsCrossfade = changedBandCount > 3 && oldConfig != null && filters.isNotEmpty()
+
+        if (needsCrossfade) {
+            // Save old filter state for crossfade
+            oldPreampLinear = preampLinear
+            oldBandConfigs = bandConfigs
+            if (oldFilters.size != filters.size) {
+                oldFilters = Array(filters.size) { BiquadFilter(maxChannels = maxCh) }
+            }
+            for (i in filters.indices) {
+                oldFilters[i].copyFrom(filters[i])
+            }
+        }
+
+        preampLinear = 10f.pow(config.preampDb / 20f)
+        bandConfigs = config.bands
 
         // Rebuild filters if band count changed or sample rate/channels changed
         if (filters.size != config.bands.size ||
             currentSampleRate != sampleRate ||
             currentChannelCount != channelCount
         ) {
-            filters = Array(config.bands.size) { BiquadFilter(maxChannels = channelCount.coerceAtLeast(2)) }
+            filters = Array(config.bands.size) { BiquadFilter(maxChannels = maxCh) }
             currentSampleRate = sampleRate
             currentChannelCount = channelCount
         }
@@ -176,7 +286,18 @@ class ParametricEqProcessor : BaseAudioProcessor() {
             )
         }
 
+        if (needsCrossfade) {
+            // Clear state on new filters (start fresh for crossfade)
+            for (f in filters) f.clearState()
+            // ~10ms crossfade at current sample rate
+            crossfadeTotalFrames = (sampleRate * 0.01).toInt().coerceIn(128, 2048)
+            crossfadeFramesRemaining = crossfadeTotalFrames
+            isCrossfading = true
+        } else {
+            isCrossfading = false
+        }
+
         Log.d(TAG, "Config applied: enabled=$eqEnabled, preamp=${config.preampDb}dB, " +
-                "bands=${config.bands.size}, sampleRate=$sampleRate")
+                "bands=${config.bands.size}, sampleRate=$sampleRate, crossfade=$needsCrossfade")
     }
 }

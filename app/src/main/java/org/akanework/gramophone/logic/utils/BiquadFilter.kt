@@ -133,6 +133,18 @@ class BiquadFilter(private val maxChannels: Int = 2) {
     }
 
     /**
+     * Copy all coefficients and state from another BiquadFilter.
+     * Used for crossfade transitions when switching presets.
+     */
+    fun copyFrom(other: BiquadFilter) {
+        this.b0 = other.b0; this.b1 = other.b1; this.b2 = other.b2
+        this.a1 = other.a1; this.a2 = other.a2
+        this.currentSampleRate = other.currentSampleRate
+        other.z1.copyInto(this.z1, endIndex = minOf(other.z1.size, this.z1.size))
+        other.z2.copyInto(this.z2, endIndex = minOf(other.z2.size, this.z2.size))
+    }
+
+    /**
      * Evaluate the filter's frequency response magnitude at a given frequency.
      * Used by UI to draw the EQ curve. Returns |H(e^jw)|.
      */

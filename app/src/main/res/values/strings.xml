@@ -610,4 +610,6 @@
     <string name="eq_treble_boost">Treble Boost</string>
     <string name="eq_v_shape">V-Shape</string>
     <string name="eq_vocal_clarity">Vocal Clarity</string>
+    <string name="eq_loudness">Loudness</string>
+    <string name="eq_reduce_sibilance">Reduce Sibilance</string>
 </resources>

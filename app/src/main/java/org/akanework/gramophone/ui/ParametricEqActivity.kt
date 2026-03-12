@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -54,8 +55,12 @@ class ParametricEqActivity : AppCompatActivity() {
     private lateinit var enableSwitch: MaterialSwitch
     private lateinit var presetDropdown: AutoCompleteTextView
     private lateinit var clippingWarning: TextView
+    private lateinit var bandsScroll: HorizontalScrollView
 
     private var suppressPresetChange = false
+    private var accentColor = 0
+    private var cutColor = 0
+    private var defaultTextColor = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +73,16 @@ class ParametricEqActivity : AppCompatActivity() {
         currentConfig = EqConfig.loadFromPrefs(prefs)
 
         initViews()
+        // Cache colors for gain color coding
+        accentColor = MaterialColors.getColor(
+            this, androidx.appcompat.R.attr.colorPrimary, 0xFF6200EE.toInt()
+        )
+        cutColor = MaterialColors.getColor(
+            this, android.R.attr.colorError, 0xFFB00020.toInt()
+        )
+        defaultTextColor = MaterialColors.getColor(
+            this, com.google.android.material.R.attr.colorOnSurface, 0xFF000000.toInt()
+        )
         setupToolbar()
         setupEnableSwitch()
         setupPresetDropdown()
@@ -102,6 +117,13 @@ class ParametricEqActivity : AppCompatActivity() {
         enableSwitch = findViewById(R.id.eq_enable_switch)
         presetDropdown = findViewById(R.id.preset_dropdown)
         clippingWarning = findViewById(R.id.clipping_warning)
+        bandsScroll = findViewById(R.id.bands_scroll)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Persist config on any activity pause to handle unexpected kills
+        currentConfig.saveToPrefs(prefs)
     }
 
     private fun setupToolbar() {
@@ -333,9 +355,6 @@ class ParametricEqActivity : AppCompatActivity() {
 
     private fun refreshBandGrid() {
         bandsContainer.removeAllViews()
-        val accentColor = MaterialColors.getColor(
-            this, androidx.appcompat.R.attr.colorPrimary, 0xFF6200EE.toInt()
-        )
 
         for (i in currentConfig.bands.indices) {
             val band = currentConfig.bands[i]
@@ -371,7 +390,7 @@ class ParametricEqActivity : AppCompatActivity() {
             }
             bandColumn.addView(freqLabel)
 
-            // Gain value (tappable to edit)
+            // Gain value (tappable to edit, long-press to reset)
             val gainLabel = TextView(this).apply {
                 text = formatGain(band.gainDb)
                 textAlignment = View.TEXT_ALIGNMENT_CENTER
@@ -380,11 +399,18 @@ class ParametricEqActivity : AppCompatActivity() {
                 background = getDrawable(android.R.drawable.list_selector_background)
                 isClickable = true
                 isFocusable = true
+                isLongClickable = true
 
-                // Highlight selected band
+                // Color coding: boost=accent, cut=error, zero=default
                 if (i == selectedBandIndex) {
                     setTypeface(null, Typeface.BOLD)
                     setTextColor(accentColor)
+                } else {
+                    setTextColor(when {
+                        band.gainDb > 0f -> accentColor
+                        band.gainDb < 0f -> cutColor
+                        else -> defaultTextColor
+                    })
                 }
                 // Dim disabled bands
                 if (!band.enabled) {
@@ -396,10 +422,33 @@ class ParametricEqActivity : AppCompatActivity() {
                     selectBand(bandIndex)
                     showGainInputDialog(bandIndex)
                 }
+                // Long-press to reset individual band
+                setOnLongClickListener {
+                    updateBandConfig(bandIndex, BandConfig(
+                        enabled = true, filterType = FilterType.PEAKING,
+                        frequencyHz = band.frequencyHz, gainDb = 0f, q = BandConfig.DEFAULT_Q
+                    ))
+                    true
+                }
             }
             bandColumn.addView(gainLabel)
 
             bandsContainer.addView(bandColumn)
+        }
+
+        // Scroll to selected band
+        if (selectedBandIndex >= 0) {
+            scrollToSelectedBand()
+        }
+    }
+
+    /** Scroll the horizontal band grid to make the selected band visible */
+    private fun scrollToSelectedBand() {
+        if (selectedBandIndex < 0 || selectedBandIndex >= bandsContainer.childCount) return
+        bandsContainer.post {
+            val child = bandsContainer.getChildAt(selectedBandIndex) ?: return@post
+            val scrollX = child.left - (bandsScroll.width / 2) + (child.width / 2)
+            bandsScroll.smoothScrollTo(scrollX.coerceAtLeast(0), 0)
         }
     }
 
@@ -445,6 +494,10 @@ class ParametricEqActivity : AppCompatActivity() {
                 val clamped = db.coerceIn(-15f, 15f)
                 updateBandConfig(bandIndex, band.copy(gainDb = clamped))
                 updateClippingWarning()
+                // Auto-advance to next band for fast sequential editing
+                if (bandIndex + 1 < currentConfig.bands.size) {
+                    selectBand(bandIndex + 1)
+                }
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()

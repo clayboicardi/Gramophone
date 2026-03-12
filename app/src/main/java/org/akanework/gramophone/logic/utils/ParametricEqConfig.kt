@@ -170,28 +170,39 @@ object ParametricEqProfileManager {
         val freqs = EqConfig.ISO_31_FREQUENCIES
         linkedMapOf(
             "Bass Boost" to createPreset(freqs, mapOf(
-                50f to 5f, 63f to 6f, 80f to 6f, 100f to 5f, 125f to 3f, 160f to 1f
+                20f to 6f, 25f to 6f, 31.5f to 5.5f, 40f to 5f, 50f to 4.5f,
+                63f to 4f, 80f to 3f, 100f to 2f, 125f to 1f, 160f to 0.5f
             )),
             "Treble Boost" to createPreset(freqs, mapOf(
-                8000f to 3f, 10000f to 4f, 12500f to 4f, 16000f to 3f, 20000f to 2f
+                4000f to 1f, 5000f to 2f, 6300f to 3f, 8000f to 4f,
+                10000f to 4.5f, 12500f to 5f, 16000f to 5f, 20000f to 5f
             )),
             "V-Shape" to createPreset(freqs, mapOf(
-                20f to 4f, 25f to 4f, 31.5f to 5f, 40f to 5f, 50f to 5f,
-                63f to 4f, 80f to 3f, 100f to 2f,
-                500f to -2f, 630f to -3f, 800f to -3f, 1000f to -3f,
-                1250f to -2f, 1600f to -1f,
-                8000f to 2f, 10000f to 3f, 12500f to 4f, 16000f to 5f, 20000f to 5f
+                20f to 5f, 25f to 5f, 31.5f to 4.5f, 40f to 4f, 50f to 3.5f,
+                63f to 3f, 80f to 2f, 100f to 1f,
+                2000f to -2f, 2500f to -2.5f, 3150f to -2f,
+                8000f to 1f, 10000f to 2f, 12500f to 3f, 16000f to 4f, 20000f to 5f
             )),
             "Vocal Clarity" to createPreset(freqs, mapOf(
-                2000f to 2f, 2500f to 3f, 3150f to 4f, 4000f to 3f, 5000f to 2f
+                160f to -1f, 200f to -1.5f, 250f to -2f, 315f to -1.5f,
+                2000f to 2f, 2500f to 3f, 3150f to 3.5f, 4000f to 3f, 5000f to 2f
+            )),
+            "Loudness" to createPreset(freqs, mapOf(
+                20f to 4f, 25f to 4f, 31.5f to 3.5f, 40f to 3f, 50f to 2f,
+                63f to 1f,
+                6300f to 1f, 8000f to 2f, 10000f to 3f, 12500f to 3.5f,
+                16000f to 4f, 20000f to 4f
+            ), preampDb = -4f),
+            "Reduce Sibilance" to createPreset(freqs, mapOf(
+                5000f to -2f, 6300f to -4f, 8000f to -5f, 10000f to -3f, 12500f to -1f
             ))
         )
     }
 
-    private fun createPreset(freqs: FloatArray, gains: Map<Float, Float>): EqConfig {
+    private fun createPreset(freqs: FloatArray, gains: Map<Float, Float>, preampDb: Float = 0f): EqConfig {
         return EqConfig(
             enabled = false,
-            preampDb = 0f,
+            preampDb = preampDb,
             bands = freqs.map { freq ->
                 BandConfig(
                     enabled = true,
