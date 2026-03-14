@@ -120,6 +120,16 @@ android {
             "DISABLE_MEDIA_STORE_FILTER",
             "false"
         )
+
+        // Tidal API credentials (read from local.properties, gitignored)
+        val localProps = Properties()
+        val localPropsFile = rootProject.file("local.properties")
+        if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
+        buildConfigField("String", "TIDAL_CLIENT_ID",
+            "\"${localProps.getProperty("tidal.clientId", "")}\"")
+        buildConfigField("String", "TIDAL_CLIENT_SECRET",
+            "\"${localProps.getProperty("tidal.clientSecret", "")}\"")
+
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -305,6 +315,8 @@ dependencies {
     implementation("me.zhanghai.android.fastscroll:library:1.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+    // OkHttp for Tidal API calls
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     // FLAC/Vorbis tag reading and writing (Android-compatible JAudioTagger fork)
     implementation("com.ealva:ealvatag:0.4.6")
     //noinspection GradleDependency newer versions need java.nio which is api 26+

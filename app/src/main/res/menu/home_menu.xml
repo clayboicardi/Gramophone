@@ -7,6 +7,11 @@
         android:title="@string/home_menu_search"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/tidal_search"
+        android:icon="@drawable/ic_tidal_download"
+        android:title="Tidal Download"
+        app:showAsAction="ifRoom" />
+    <item
         android:id="@+id/shuffle"
         android:icon="@drawable/ic_shuffle"
         android:title="@string/home_menu_shuffle"

@@ -91,6 +91,10 @@ class ViewPagerFragment : BaseFragment(true) {
                     activity.startFragment(SearchFragment())
                 }
 
+                R.id.tidal_search -> {
+                    activity.startFragment(TidalSearchFragment())
+                }
+
                 R.id.equalizer -> {
                     val intent =
                         Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL).apply {
